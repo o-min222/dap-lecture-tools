@@ -1,0 +1,12 @@
+id: dap.lecture_tools
+name: Lecture Tools
+version: 0.1.0
+manifest_version: 2
+entry: dap_lecture_tools.plugin:activate
+description: 강사용 커서 강조, 판서, spotlight 오버레이 컨트롤.
+author: DAP
+surface: user
+permissions:
+  - presentation.overlay
+execution_modes:
+  - builtin
