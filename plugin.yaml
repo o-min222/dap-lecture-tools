@@ -9,4 +9,4 @@ surface: user
 permissions:
   - presentation.overlay
 execution_modes:
-  - builtin
+  - user
