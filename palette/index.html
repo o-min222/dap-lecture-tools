@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lecture Tools</title>
+    <style>
+      :root {
+        --bg: #202124;
+        --panel: #2b2d31;
+        --panel-2: #34373d;
+        --border: #454951;
+        --text: #f1f3f5;
+        --muted: #aeb4bc;
+        --accent: #ffcc00;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font: 13px/1.4 -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+        user-select: none;
+      }
+      #titlebar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--border);
+        -webkit-app-region: drag;
+      }
+      .title { font-weight: 700; }
+      .spacer { flex: 1; }
+      button { font: inherit; }
+      .icon-btn, .tool, .swatch, .size {
+        -webkit-app-region: no-drag;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        color: var(--text);
+        border-radius: 7px;
+        cursor: pointer;
+      }
+      .icon-btn {
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+      }
+      .icon-btn:hover, .tool:hover, .size:hover { background: var(--panel-2); }
+      main { padding: 10px; display: grid; gap: 10px; }
+      .section {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.025);
+        padding: 9px;
+      }
+      .label {
+        color: var(--muted);
+        font-size: 11px;
+        margin-bottom: 7px;
+      }
+      .tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+      .tool {
+        min-height: 54px;
+        display: grid;
+        place-items: center;
+        gap: 2px;
+        padding: 7px 4px;
+      }
+      .tool svg { width: 19px; height: 19px; }
+      .tool.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+      .row { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+      .swatch {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+      }
+      .swatch.active { outline: 2px solid var(--text); outline-offset: 2px; }
+      .size { min-width: 54px; height: 30px; }
+      .size.active { border-color: var(--accent); color: var(--accent); }
+      .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+      .wide { grid-column: 1 / -1; }
+      .hint { color: var(--muted); font-size: 11px; }
+    </style>
+  </head>
+  <body>
+    <div id="titlebar">
+      <span class="title">강의 도구</span>
+      <span class="spacer"></span>
+      <button class="icon-btn" id="close" title="닫기">×</button>
+    </div>
+    <main>
+      <section class="section">
+        <div class="label">도구</div>
+        <div class="tools">
+          <button class="tool" data-mode="cursor" title="커서 강조">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l7 16 2-7 7-2L4 4z"/></svg>
+            <span>커서</span>
+          </button>
+          <button class="tool" data-mode="draw" title="화면 판서">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+            <span>펜</span>
+          </button>
+          <button class="tool" data-mode="spotlight" title="Spotlight">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <span>조명</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="label">색상</div>
+        <div class="row" id="colors">
+          <button class="swatch" data-color="#ffcc00" style="background:#ffcc00" title="노랑"></button>
+          <button class="swatch" data-color="#ff4d4f" style="background:#ff4d4f" title="빨강"></button>
+          <button class="swatch" data-color="#40c057" style="background:#40c057" title="초록"></button>
+          <button class="swatch" data-color="#339af0" style="background:#339af0" title="파랑"></button>
+          <button class="swatch" data-color="#f8f9fa" style="background:#f8f9fa" title="흰색"></button>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="label">두께</div>
+        <div class="row" id="sizes">
+          <button class="size" data-size="3">얇게</button>
+          <button class="size" data-size="4">보통</button>
+          <button class="size" data-size="7">굵게</button>
+        </div>
+      </section>
+
+      <section class="section actions">
+        <button class="tool" id="undo">Undo</button>
+        <button class="tool" id="clear">Clear</button>
+        <button class="tool wide" id="toggleOverlay">오버레이 켜기/끄기</button>
+        <button class="tool wide" id="hideOverlay">오버레이 숨기기</button>
+      </section>
+      <div class="hint">펜 모드에서만 화면 입력을 잡고, 커서/조명 모드는 아래 앱 조작을 유지합니다.</div>
+    </main>
+    <script>
+      const dap = window.dapPalette;
+      let state = { mode: "cursor", options: { color: "#ffcc00", strokeWidth: 4 } };
+
+      function post(msg) { dap.postMessage(msg); }
+      function setActive() {
+        for (const btn of document.querySelectorAll("[data-mode]")) {
+          btn.classList.toggle("active", btn.dataset.mode === state.mode);
+        }
+        for (const btn of document.querySelectorAll("[data-color]")) {
+          btn.classList.toggle("active", btn.dataset.color === state.options.color);
+        }
+        for (const btn of document.querySelectorAll("[data-size]")) {
+          btn.classList.toggle("active", Number(btn.dataset.size) === Number(state.options.strokeWidth));
+        }
+      }
+      function patchOptions(options) {
+        state.options = { ...state.options, ...options };
+        setActive();
+        post({ type: "options", options });
+      }
+
+      document.getElementById("close").addEventListener("click", () => dap.close());
+      document.getElementById("undo").addEventListener("click", () => post({ type: "undo" }));
+      document.getElementById("clear").addEventListener("click", () => post({ type: "clear" }));
+      document.getElementById("toggleOverlay").addEventListener("click", () => post({ type: "toggleOverlay" }));
+      document.getElementById("hideOverlay").addEventListener("click", () => post({ type: "hideOverlay" }));
+
+      for (const btn of document.querySelectorAll("[data-mode]")) {
+        btn.addEventListener("click", () => {
+          state.mode = btn.dataset.mode;
+          setActive();
+          post({ type: "mode", mode: state.mode });
+        });
+      }
+      for (const btn of document.querySelectorAll("[data-color]")) {
+        btn.addEventListener("click", () => patchOptions({ color: btn.dataset.color }));
+      }
+      for (const btn of document.querySelectorAll("[data-size]")) {
+        btn.addEventListener("click", () => patchOptions({ strokeWidth: Number(btn.dataset.size) }));
+      }
+
+      dap.onMessage((msg) => {
+        if (!msg || msg.type !== "state") return;
+        state = { ...state, mode: msg.mode || state.mode, options: { ...state.options, ...(msg.options || {}) } };
+        setActive();
+      });
+      setActive();
+      post({ type: "ready" });
+    </script>
+  </body>
+</html>

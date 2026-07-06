@@ -4,6 +4,7 @@ Lecture Tools plugin for DAP.
 
 ## What It Provides
 
+- A compact paint-like palette window
 - Plugin actions for lecture overlay controls
 - Rebindable shortcuts
 - Radial menu and tray menu entries
@@ -11,14 +12,16 @@ Lecture Tools plugin for DAP.
 
 ## Current Host Requirement
 
-This plugin expects DAP host support for `ctx.host.presentation` with the
-`presentation.overlay` permission.
+This plugin expects these DAP host services:
 
-Until that host service lands, the plugin loads safely and shows a short DAP
-bubble explaining that the presentation overlay update is required.
+- `ctx.host.windows` with the `window.palette` permission
+- `ctx.host.presentation` with the `presentation.overlay` permission
+
+The palette can open through the existing DAP palette host. The actual screen
+overlay still requires `ctx.host.presentation`.
 
 ## Files
 
 - `plugin.yaml`
 - `dap_lecture_tools/plugin.mjs`
-
+- `palette/index.html`

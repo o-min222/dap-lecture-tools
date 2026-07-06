@@ -5,8 +5,16 @@ const SETTINGS_FULL_ID = `${PLUGIN_ID}.${SETTINGS_LOCAL_ID}`;
 const MOD_CONTROL = 0x2;
 const MOD_SHIFT = 0x4;
 
+let handle = null;
+let currentMode = "cursor";
+let currentOptions = {};
+
 function presentation(ctx) {
   return ctx.host && ctx.host.presentation;
+}
+
+function windows(ctx) {
+  return ctx.host && ctx.host.windows;
 }
 
 function speak(ctx, text) {
@@ -39,6 +47,11 @@ function optionsFromSettings(values) {
   };
 }
 
+function mergedOptions(ctx, patch) {
+  currentOptions = { ...optionsFromSettings(settings(ctx)), ...currentOptions, ...(patch || {}) };
+  return currentOptions;
+}
+
 function withOverlay(ctx, fn) {
   const api = presentation(ctx);
   if (!api) {
@@ -46,16 +59,82 @@ function withOverlay(ctx, fn) {
     speak(ctx, "강의 도구는 DAP host의 presentation overlay 업데이트가 필요해요.");
     return false;
   }
-  api.setOptions && api.setOptions(optionsFromSettings(settings(ctx)));
+  api.setOptions && api.setOptions(mergedOptions(ctx));
   fn(api);
+  postState();
   return true;
 }
 
 function setMode(ctx, mode) {
+  currentMode = mode;
   return withOverlay(ctx, (api) => {
     api.show && api.show();
     api.setMode && api.setMode(mode);
   });
+}
+
+function postState() {
+  if (!handle || handle.isDestroyed()) return;
+  handle.postMessage({ type: "state", mode: currentMode, options: currentOptions });
+}
+
+function onPaletteMessage(ctx, msg) {
+  if (!msg || typeof msg !== "object") return;
+  switch (msg.type) {
+    case "ready":
+      postState();
+      break;
+    case "mode":
+      if (msg.mode === "cursor" || msg.mode === "draw" || msg.mode === "spotlight") setMode(ctx, msg.mode);
+      break;
+    case "toggleOverlay":
+      withOverlay(ctx, (api) => api.toggle && api.toggle());
+      break;
+    case "hideOverlay":
+      withOverlay(ctx, (api) => api.hide && api.hide());
+      break;
+    case "clear":
+      withOverlay(ctx, (api) => api.clear && api.clear());
+      break;
+    case "undo":
+      withOverlay(ctx, (api) => api.undo && api.undo());
+      break;
+    case "options":
+      withOverlay(ctx, (api) => api.setOptions && api.setOptions(mergedOptions(ctx, msg.options)));
+      break;
+    default:
+      break;
+  }
+}
+
+function openPalette(ctx) {
+  const win = windows(ctx);
+  if (!win || typeof win.openPalette !== "function") {
+    speak(ctx, "강의 도구 팔레트는 DAP host의 window.palette 권한 지원이 필요해요.");
+    return false;
+  }
+  if (handle && !handle.isDestroyed()) {
+    handle.show();
+    postState();
+    return true;
+  }
+  handle = win.openPalette({ page: "palette/index.html", width: 320, height: 430, frame: false });
+  handle.onMessage((msg) => onPaletteMessage(ctx, msg));
+  postState();
+  return true;
+}
+
+function closePalette() {
+  if (handle && !handle.isDestroyed()) handle.close();
+  handle = null;
+}
+
+function togglePalette(ctx) {
+  if (handle && !handle.isDestroyed() && handle.isVisible()) {
+    handle.hide();
+    return true;
+  }
+  return openPalette(ctx);
 }
 
 export function activate(ctx) {
@@ -106,8 +185,9 @@ export function activate(ctx) {
 
   ctx.actions.registerAction({
     id: "toggle",
-    callback: () => withOverlay(ctx, (api) => api.toggle && api.toggle()),
+    callback: () => togglePalette(ctx),
   });
+  ctx.actions.registerAction({ id: "openPalette", callback: () => openPalette(ctx) });
   ctx.actions.registerAction({ id: "cursorMode", callback: () => setMode(ctx, "cursor") });
   ctx.actions.registerAction({ id: "drawMode", callback: () => setMode(ctx, "draw") });
   ctx.actions.registerAction({ id: "spotlightMode", callback: () => setMode(ctx, "spotlight") });
@@ -148,4 +228,8 @@ export function activate(ctx) {
 
   ctx.radialMenu.addItem({ itemId: "lecture", label: "강의 도구", actionId: "toggle", priority: 60 });
   ctx.trayMenu.addItem({ itemId: "lecture", label: "강의 도구", actionId: "toggle", priority: 60 });
+
+  return () => {
+    closePalette();
+  };
 }
