@@ -416,7 +416,7 @@ export function activate(ctx) {
     priority: 80,
   });
 
-  ctx.radialMenu.addItem({ itemId: "lecture", label: "강의 도구", actionId: "toggle", priority: 60 });
+  ctx.radialMenu.addItem({ itemId: "lecture", label: "강의 도구", actionId: "toggle", priority: 60, icon: "assets/lecture-tools.svg" });
   ctx.trayMenu.addItem({ itemId: "lecture", label: "강의 도구", actionId: "toggle", priority: 60 });
 
   return () => {
