@@ -20,6 +20,19 @@ This plugin expects these DAP host services:
 The palette can open through the existing DAP palette host. The actual screen
 overlay still requires `ctx.host.presentation`.
 
+## Architecture Rule
+
+Most feature implementation belongs in the plugin.
+
+The host should provide only the safe privileged surface that a plugin cannot
+own itself: overlay window creation, click-through/interactivity control,
+cursor position access, message bridging, permission gating, and lifecycle
+cleanup.
+
+Tool behavior such as palette UI, drawing state, canvas rendering, cursor
+highlighting, click ripple, spotlight rendering, undo, clear, colors, and stroke
+width belongs in this plugin.
+
 ## Files
 
 - `plugin.yaml`
