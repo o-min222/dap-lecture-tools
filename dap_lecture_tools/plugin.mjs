@@ -326,7 +326,7 @@ function openPalette(ctx) {
     return true;
   }
   const vertical = currentOptions.layout === "vertical";
-  paletteHandle = win.openPalette({ page: "palette/index.html", width: vertical ? 82 : 540, height: vertical ? 560 : 64, frame: false });
+  paletteHandle = win.openPalette({ page: "palette/index.html", width: vertical ? 74 : 450, height: vertical ? 488 : 42, frame: false, closeOnPetDrop: true });
   if (paletteHandle && typeof paletteHandle.onMessage === "function") {
     paletteHandle.onMessage((msg) => onPaletteMessage(ctx, msg));
   }
@@ -431,7 +431,13 @@ export function activate(ctx) {
   });
 
   ctx.radialMenu.addItem({ itemId: "lecture", label: "강의 도구", actionId: "toggle", priority: 60, icon: "assets/lecture-tools.svg" });
-  ctx.trayMenu.addItem({ itemId: "lecture", label: "강의 도구", actionId: "toggle", priority: 60 });
+  ctx.trayMenu.addItem({
+    itemId: "lecture",
+    label: "강의 도구",
+    actionId: "toggle",
+    showInContextMenu: true,
+    priority: 60,
+  });
 
   return () => {
     closeOverlay(ctx);
