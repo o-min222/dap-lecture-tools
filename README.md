@@ -12,14 +12,14 @@ Use the DAP plugin catalog entry:
   "name": "Lecture Tools",
   "description": "강사용 커서 강조, 판서, spotlight 오버레이 컨트롤",
   "repo": "o-min222/dap-lecture-tools",
-  "ref": "v0.3.2"
+  "ref": "v0.3.18"
 }
 ```
 
 Manual download:
 
-- Release: https://github.com/o-min222/dap-lecture-tools/releases/tag/v0.3.2
-- Source zip: https://github.com/o-min222/dap-lecture-tools/archive/refs/tags/v0.3.2.zip
+- Release: https://github.com/o-min222/dap-lecture-tools/releases/tag/v0.3.18
+- Source zip: https://github.com/o-min222/dap-lecture-tools/archive/refs/tags/v0.3.18.zip
 
 ## What It Provides
 
