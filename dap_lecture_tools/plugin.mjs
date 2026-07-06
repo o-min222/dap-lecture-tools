@@ -2,8 +2,7 @@ const PLUGIN_ID = "dap.lecture_tools";
 const SETTINGS_LOCAL_ID = "general";
 const SETTINGS_FULL_ID = `${PLUGIN_ID}.${SETTINGS_LOCAL_ID}`;
 
-const MOD_CONTROL = 0x2;
-const MOD_SHIFT = 0x4;
+const MOD_NONE = 0;
 
 let paletteHandle = null;
 let overlayHandle = null;
@@ -335,9 +334,9 @@ export function activate(ctx) {
 
   ctx.actions.registerAction({ id: "toggle", callback: () => togglePalette(ctx) });
   ctx.actions.registerAction({ id: "openPalette", callback: () => openPalette(ctx) });
-  ctx.actions.registerAction({ id: "cursorMode", callback: () => setMode(ctx, "cursor") });
+  ctx.actions.registerAction({ id: "cursorMode", callback: () => toggleMode(ctx, "cursor") });
   ctx.actions.registerAction({ id: "drawMode", callback: () => toggleMode(ctx, "draw") });
-  ctx.actions.registerAction({ id: "spotlightMode", callback: () => setMode(ctx, "spotlight") });
+  ctx.actions.registerAction({ id: "spotlightMode", callback: () => toggleMode(ctx, "spotlight") });
   ctx.actions.registerAction({ id: "lineMode", callback: () => toggleMode(ctx, "line") });
   ctx.actions.registerAction({ id: "rectMode", callback: () => toggleMode(ctx, "rect") });
   ctx.actions.registerAction({ id: "ellipseMode", callback: () => toggleMode(ctx, "ellipse") });
@@ -355,80 +354,80 @@ export function activate(ctx) {
   ctx.shortcuts.registerShortcut({
     actionKey: "toggle_lecture_tools",
     title: "강의 도구 켜기/끄기",
-    defaultModifiers: MOD_CONTROL | MOD_SHIFT,
-    defaultVk: 0x4c,
+    defaultModifiers: MOD_NONE,
+    defaultVk: 0x70,
     actionId: "toggle",
     priority: 80,
   });
   ctx.shortcuts.registerShortcut({
     actionKey: "lecture_cursor_mode",
-    title: "강의 도구 커서 강조",
-    defaultModifiers: MOD_CONTROL | MOD_SHIFT,
-    defaultVk: 0x43,
+    title: "강의 도구 커서 강조 켜기/끄기",
+    defaultModifiers: MOD_NONE,
+    defaultVk: 0x71,
     actionId: "cursorMode",
     priority: 81,
   });
   ctx.shortcuts.registerShortcut({
     actionKey: "lecture_draw_mode",
     title: "강의 도구 펜 켜기/끄기",
-    defaultModifiers: MOD_CONTROL | MOD_SHIFT,
-    defaultVk: 0x44,
+    defaultModifiers: MOD_NONE,
+    defaultVk: 0x73,
     actionId: "drawMode",
     priority: 82,
   });
   ctx.shortcuts.registerShortcut({
     actionKey: "lecture_spotlight_mode",
-    title: "강의 도구 Spotlight 모드",
-    defaultModifiers: MOD_CONTROL | MOD_SHIFT,
-    defaultVk: 0x53,
+    title: "강의 도구 Spotlight 켜기/끄기",
+    defaultModifiers: MOD_NONE,
+    defaultVk: 0x72,
     actionId: "spotlightMode",
     priority: 83,
   });
   ctx.shortcuts.registerShortcut({
     actionKey: "lecture_line_mode",
     title: "강의 도구 선 그리기",
-    defaultModifiers: MOD_CONTROL | MOD_SHIFT,
-    defaultVk: 0x49,
+    defaultModifiers: MOD_NONE,
+    defaultVk: 0x74,
     actionId: "lineMode",
     priority: 84,
   });
   ctx.shortcuts.registerShortcut({
     actionKey: "lecture_rect_mode",
     title: "강의 도구 사각형 그리기",
-    defaultModifiers: MOD_CONTROL | MOD_SHIFT,
-    defaultVk: 0x52,
+    defaultModifiers: MOD_NONE,
+    defaultVk: 0x75,
     actionId: "rectMode",
     priority: 85,
   });
   ctx.shortcuts.registerShortcut({
     actionKey: "lecture_ellipse_mode",
     title: "강의 도구 원 그리기",
-    defaultModifiers: MOD_CONTROL | MOD_SHIFT,
-    defaultVk: 0x4f,
+    defaultModifiers: MOD_NONE,
+    defaultVk: 0x76,
     actionId: "ellipseMode",
     priority: 86,
   });
   ctx.shortcuts.registerShortcut({
     actionKey: "lecture_undo",
     title: "강의 도구 되돌리기",
-    defaultModifiers: MOD_CONTROL | MOD_SHIFT,
-    defaultVk: 0x5a,
+    defaultModifiers: MOD_NONE,
+    defaultVk: 0x77,
     actionId: "undo",
     priority: 87,
   });
   ctx.shortcuts.registerShortcut({
     actionKey: "lecture_clear",
     title: "강의 도구 모두 지우기",
-    defaultModifiers: MOD_CONTROL | MOD_SHIFT,
-    defaultVk: 0x58,
+    defaultModifiers: MOD_NONE,
+    defaultVk: 0x78,
     actionId: "clear",
     priority: 88,
   });
   ctx.shortcuts.registerShortcut({
     actionKey: "lecture_hide_overlay",
     title: "강의 도구 오버레이 숨기기",
-    defaultModifiers: MOD_CONTROL | MOD_SHIFT,
-    defaultVk: 0x48,
+    defaultModifiers: MOD_NONE,
+    defaultVk: 0x79,
     actionId: "hideOverlay",
     priority: 89,
   });
