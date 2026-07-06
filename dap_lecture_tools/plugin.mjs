@@ -5,7 +5,12 @@ const SETTINGS_FULL_ID = `${PLUGIN_ID}.${SETTINGS_LOCAL_ID}`;
 const MOD_CONTROL = 0x2;
 const MOD_SHIFT = 0x4;
 
-let handle = null;
+let paletteHandle = null;
+let overlayHandle = null;
+let overlayVisible = false;
+let disposeOverlayMessages = null;
+let cursorTimer = null;
+let lastDown = false;
 let currentMode = "cursor";
 let currentOptions = {};
 
@@ -52,55 +57,161 @@ function mergedOptions(ctx, patch) {
   return currentOptions;
 }
 
-function withOverlay(ctx, fn) {
+function isAlive(handle) {
+  return !!handle && !(typeof handle.isDestroyed === "function" && handle.isDestroyed());
+}
+
+function postPaletteState() {
+  if (!isAlive(paletteHandle)) return;
+  paletteHandle.postMessage({ type: "state", mode: currentMode, options: currentOptions, overlayVisible });
+}
+
+function overlayPost(ctx, msg) {
   const api = presentation(ctx);
-  if (!api) {
-    // ponytail: plugin-only shell until the host overlay service lands.
+  if (isAlive(overlayHandle) && typeof overlayHandle.postMessage === "function") overlayHandle.postMessage(msg);
+  else if (api && typeof api.postMessage === "function") api.postMessage(msg);
+}
+
+function setOverlayInteractive(ctx) {
+  const on = currentMode === "draw";
+  const api = presentation(ctx);
+  if (isAlive(overlayHandle) && typeof overlayHandle.setInteractive === "function") overlayHandle.setInteractive(on);
+  else if (api && typeof api.setInteractive === "function") api.setInteractive(on);
+}
+
+function postOverlayState(ctx) {
+  overlayPost(ctx, { type: "state", mode: currentMode, options: currentOptions });
+}
+
+function postState(ctx) {
+  postPaletteState();
+  postOverlayState(ctx);
+}
+
+function stopCursorPump() {
+  if (cursorTimer) clearInterval(cursorTimer);
+  cursorTimer = null;
+  lastDown = false;
+}
+
+function normalizePoint(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const x = Number(raw.x);
+  const y = Number(raw.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return {
+    x,
+    y,
+    down: raw.down === true || raw.leftDown === true || raw.buttons === 1,
+  };
+}
+
+function startCursorPump(ctx) {
+  if (cursorTimer) return;
+  const api = presentation(ctx);
+  if (!api || typeof api.cursorPos !== "function") return;
+  cursorTimer = setInterval(() => {
+    if (!overlayVisible || currentMode === "draw") return;
+    const point = normalizePoint(api.cursorPos());
+    if (!point) return;
+    overlayPost(ctx, { type: "cursor", point });
+    if (point.down && !lastDown) overlayPost(ctx, { type: "click", point });
+    lastDown = point.down;
+  }, 33);
+  cursorTimer.unref && cursorTimer.unref();
+}
+
+function onOverlayMessage(ctx, msg) {
+  if (!msg || typeof msg !== "object") return;
+  if (msg.type === "ready") postOverlayState(ctx);
+}
+
+function ensureOverlay(ctx) {
+  const api = presentation(ctx);
+  if (!api || typeof api.openOverlay !== "function") {
     speak(ctx, "강의 도구는 DAP host의 presentation overlay 업데이트가 필요해요.");
     return false;
   }
-  api.setOptions && api.setOptions(mergedOptions(ctx));
-  fn(api);
-  postState();
+  if (!isAlive(overlayHandle)) {
+    overlayHandle = api.openOverlay({
+      page: "overlay/index.html",
+      width: "screen",
+      height: "screen",
+      clickThrough: true,
+    });
+    const messageSource = isAlive(overlayHandle) && typeof overlayHandle.onMessage === "function" ? overlayHandle : api;
+    if (messageSource && typeof messageSource.onMessage === "function") {
+      disposeOverlayMessages = messageSource.onMessage((msg) => onOverlayMessage(ctx, msg));
+    }
+  } else if (typeof overlayHandle.show === "function") {
+    overlayHandle.show();
+  } else if (typeof api.showOverlay === "function") {
+    api.showOverlay();
+  }
+  overlayVisible = true;
+  setOverlayInteractive(ctx);
+  startCursorPump(ctx);
+  postState(ctx);
   return true;
+}
+
+function hideOverlay(ctx) {
+  const api = presentation(ctx);
+  if (isAlive(overlayHandle) && typeof overlayHandle.hide === "function") overlayHandle.hide();
+  else if (api && typeof api.hideOverlay === "function") api.hideOverlay();
+  overlayVisible = false;
+  postPaletteState();
+}
+
+function closeOverlay(ctx) {
+  const api = presentation(ctx);
+  if (typeof disposeOverlayMessages === "function") disposeOverlayMessages();
+  disposeOverlayMessages = null;
+  if (isAlive(overlayHandle) && typeof overlayHandle.close === "function") overlayHandle.close();
+  else if (api && typeof api.closeOverlay === "function") api.closeOverlay();
+  overlayHandle = null;
+  overlayVisible = false;
+  stopCursorPump();
+  postPaletteState();
+}
+
+function toggleOverlay(ctx) {
+  if (overlayVisible) hideOverlay(ctx);
+  else ensureOverlay(ctx);
 }
 
 function setMode(ctx, mode) {
   currentMode = mode;
-  return withOverlay(ctx, (api) => {
-    api.show && api.show();
-    api.setMode && api.setMode(mode);
-  });
-}
-
-function postState() {
-  if (!handle || handle.isDestroyed()) return;
-  handle.postMessage({ type: "state", mode: currentMode, options: currentOptions });
+  if (ensureOverlay(ctx)) {
+    setOverlayInteractive(ctx);
+    postState(ctx);
+  }
 }
 
 function onPaletteMessage(ctx, msg) {
   if (!msg || typeof msg !== "object") return;
   switch (msg.type) {
     case "ready":
-      postState();
+      postPaletteState();
       break;
     case "mode":
       if (msg.mode === "cursor" || msg.mode === "draw" || msg.mode === "spotlight") setMode(ctx, msg.mode);
       break;
     case "toggleOverlay":
-      withOverlay(ctx, (api) => api.toggle && api.toggle());
+      toggleOverlay(ctx);
       break;
     case "hideOverlay":
-      withOverlay(ctx, (api) => api.hide && api.hide());
+      hideOverlay(ctx);
       break;
     case "clear":
-      withOverlay(ctx, (api) => api.clear && api.clear());
+      ensureOverlay(ctx) && overlayPost(ctx, { type: "clear" });
       break;
     case "undo":
-      withOverlay(ctx, (api) => api.undo && api.undo());
+      ensureOverlay(ctx) && overlayPost(ctx, { type: "undo" });
       break;
     case "options":
-      withOverlay(ctx, (api) => api.setOptions && api.setOptions(mergedOptions(ctx, msg.options)));
+      mergedOptions(ctx, msg.options);
+      ensureOverlay(ctx) && postState(ctx);
       break;
     default:
       break;
@@ -113,25 +224,26 @@ function openPalette(ctx) {
     speak(ctx, "강의 도구 팔레트는 DAP host의 window.palette 권한 지원이 필요해요.");
     return false;
   }
-  if (handle && !handle.isDestroyed()) {
-    handle.show();
-    postState();
+  mergedOptions(ctx);
+  if (isAlive(paletteHandle)) {
+    paletteHandle.show();
+    postPaletteState();
     return true;
   }
-  handle = win.openPalette({ page: "palette/index.html", width: 320, height: 430, frame: false });
-  handle.onMessage((msg) => onPaletteMessage(ctx, msg));
-  postState();
+  paletteHandle = win.openPalette({ page: "palette/index.html", width: 320, height: 430, frame: false });
+  paletteHandle.onMessage((msg) => onPaletteMessage(ctx, msg));
+  postPaletteState();
   return true;
 }
 
 function closePalette() {
-  if (handle && !handle.isDestroyed()) handle.close();
-  handle = null;
+  if (isAlive(paletteHandle)) paletteHandle.close();
+  paletteHandle = null;
 }
 
 function togglePalette(ctx) {
-  if (handle && !handle.isDestroyed() && handle.isVisible()) {
-    handle.hide();
+  if (isAlive(paletteHandle) && paletteHandle.isVisible()) {
+    paletteHandle.hide();
     return true;
   }
   return openPalette(ctx);
@@ -183,16 +295,13 @@ export function activate(ctx) {
     },
   });
 
-  ctx.actions.registerAction({
-    id: "toggle",
-    callback: () => togglePalette(ctx),
-  });
+  ctx.actions.registerAction({ id: "toggle", callback: () => togglePalette(ctx) });
   ctx.actions.registerAction({ id: "openPalette", callback: () => openPalette(ctx) });
   ctx.actions.registerAction({ id: "cursorMode", callback: () => setMode(ctx, "cursor") });
   ctx.actions.registerAction({ id: "drawMode", callback: () => setMode(ctx, "draw") });
   ctx.actions.registerAction({ id: "spotlightMode", callback: () => setMode(ctx, "spotlight") });
-  ctx.actions.registerAction({ id: "clear", callback: () => withOverlay(ctx, (api) => api.clear && api.clear()) });
-  ctx.actions.registerAction({ id: "undo", callback: () => withOverlay(ctx, (api) => api.undo && api.undo()) });
+  ctx.actions.registerAction({ id: "clear", callback: () => ensureOverlay(ctx) && overlayPost(ctx, { type: "clear" }) });
+  ctx.actions.registerAction({ id: "undo", callback: () => ensureOverlay(ctx) && overlayPost(ctx, { type: "undo" }) });
 
   ctx.commands.addCommand({
     id: "lecture_tools",
@@ -230,6 +339,7 @@ export function activate(ctx) {
   ctx.trayMenu.addItem({ itemId: "lecture", label: "강의 도구", actionId: "toggle", priority: 60 });
 
   return () => {
+    closeOverlay(ctx);
     closePalette();
   };
 }

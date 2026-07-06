@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lecture Overlay</title>
+    <style>
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: transparent;
+      }
+      canvas {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+      }
+      #ink { pointer-events: none; }
+      body.draw #ink { pointer-events: auto; cursor: crosshair; }
+      #fx { pointer-events: none; }
+    </style>
+  </head>
+  <body>
+    <canvas id="ink"></canvas>
+    <canvas id="fx"></canvas>
+    <script>
+      const bridge = window.dapPresentation || {
+        postMessage() {},
+        onMessage() { return () => {}; },
+      };
+
+      const ink = document.getElementById("ink");
+      const fx = document.getElementById("fx");
+      const inkCtx = ink.getContext("2d");
+      const fxCtx = fx.getContext("2d");
+
+      let mode = "cursor";
+      let options = {
+        cursorHighlight: true,
+        clickRipple: true,
+        color: "#ffcc00",
+        strokeWidth: 4,
+        spotlightSize: 220,
+        spotlightDim: 0.55,
+      };
+      let cursor = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      let strokes = [];
+      let currentStroke = null;
+      let ripples = [];
+
+      function resizeCanvas(canvas, ctx) {
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        const w = Math.max(1, window.innerWidth);
+        const h = Math.max(1, window.innerHeight);
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        canvas.style.width = w + "px";
+        canvas.style.height = h + "px";
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function resize() {
+        resizeCanvas(ink, inkCtx);
+        resizeCanvas(fx, fxCtx);
+        renderInk();
+      }
+
+      function screenToLocal(point) {
+        return {
+          x: Number(point.x) - (window.screenX || 0),
+          y: Number(point.y) - (window.screenY || 0),
+        };
+      }
+
+      function renderStroke(ctx, stroke) {
+        if (!stroke || stroke.points.length < 1) return;
+        ctx.save();
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.strokeStyle = stroke.color;
+        ctx.lineWidth = stroke.width;
+        ctx.beginPath();
+        ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+        for (let i = 1; i < stroke.points.length; i++) {
+          const prev = stroke.points[i - 1];
+          const p = stroke.points[i];
+          ctx.quadraticCurveTo(prev.x, prev.y, (prev.x + p.x) / 2, (prev.y + p.y) / 2);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function renderInk() {
+        inkCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        for (const stroke of strokes) renderStroke(inkCtx, stroke);
+        renderStroke(inkCtx, currentStroke);
+      }
+
+      function renderFx(now) {
+        fxCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+        if (mode === "spotlight") {
+          const r = Number(options.spotlightSize) || 220;
+          fxCtx.save();
+          fxCtx.fillStyle = `rgba(0, 0, 0, ${Number(options.spotlightDim) || 0.55})`;
+          fxCtx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+          fxCtx.globalCompositeOperation = "destination-out";
+          const g = fxCtx.createRadialGradient(cursor.x, cursor.y, r * 0.35, cursor.x, cursor.y, r);
+          g.addColorStop(0, "rgba(0,0,0,1)");
+          g.addColorStop(1, "rgba(0,0,0,0)");
+          fxCtx.fillStyle = g;
+          fxCtx.beginPath();
+          fxCtx.arc(cursor.x, cursor.y, r, 0, Math.PI * 2);
+          fxCtx.fill();
+          fxCtx.restore();
+        }
+
+        if (options.cursorHighlight !== false && mode !== "draw") {
+          fxCtx.save();
+          fxCtx.strokeStyle = options.color || "#ffcc00";
+          fxCtx.lineWidth = 3;
+          fxCtx.globalAlpha = 0.9;
+          fxCtx.beginPath();
+          fxCtx.arc(cursor.x, cursor.y, 26, 0, Math.PI * 2);
+          fxCtx.stroke();
+          fxCtx.restore();
+        }
+
+        ripples = ripples.filter((r) => now - r.t < 550);
+        for (const r of ripples) {
+          const age = now - r.t;
+          const p = Math.min(1, age / 550);
+          fxCtx.save();
+          fxCtx.strokeStyle = options.color || "#ffcc00";
+          fxCtx.lineWidth = 3 * (1 - p);
+          fxCtx.globalAlpha = 1 - p;
+          fxCtx.beginPath();
+          fxCtx.arc(r.x, r.y, 10 + p * 34, 0, Math.PI * 2);
+          fxCtx.stroke();
+          fxCtx.restore();
+        }
+
+        requestAnimationFrame(renderFx);
+      }
+
+      function setMode(next) {
+        mode = next;
+        document.body.classList.toggle("draw", mode === "draw");
+      }
+
+      function beginStroke(e) {
+        if (mode !== "draw") return;
+        ink.setPointerCapture(e.pointerId);
+        currentStroke = {
+          color: options.color || "#ffcc00",
+          width: Number(options.strokeWidth) || 4,
+          points: [{ x: e.clientX, y: e.clientY }],
+        };
+        if (options.clickRipple !== false) ripples.push({ x: e.clientX, y: e.clientY, t: performance.now() });
+        renderInk();
+      }
+
+      function moveStroke(e) {
+        if (!currentStroke) return;
+        currentStroke.points.push({ x: e.clientX, y: e.clientY });
+        cursor = { x: e.clientX, y: e.clientY };
+        renderInk();
+      }
+
+      function endStroke(e) {
+        if (!currentStroke) return;
+        if (currentStroke.points.length > 1) strokes.push(currentStroke);
+        currentStroke = null;
+        try { ink.releasePointerCapture(e.pointerId); } catch {}
+        renderInk();
+      }
+
+      ink.addEventListener("pointerdown", beginStroke);
+      ink.addEventListener("pointermove", moveStroke);
+      ink.addEventListener("pointerup", endStroke);
+      ink.addEventListener("pointercancel", endStroke);
+
+      bridge.onMessage((msg) => {
+        if (!msg || typeof msg !== "object") return;
+        if (msg.type === "state") {
+          if (msg.mode) setMode(msg.mode);
+          options = { ...options, ...(msg.options || {}) };
+        } else if (msg.type === "cursor" && msg.point) {
+          cursor = screenToLocal(msg.point);
+        } else if (msg.type === "click" && msg.point && options.clickRipple !== false) {
+          const p = screenToLocal(msg.point);
+          ripples.push({ x: p.x, y: p.y, t: performance.now() });
+        } else if (msg.type === "clear") {
+          strokes = [];
+          currentStroke = null;
+          renderInk();
+        } else if (msg.type === "undo") {
+          strokes.pop();
+          renderInk();
+        }
+      });
+
+      window.addEventListener("resize", resize);
+      resize();
+      setMode(mode);
+      requestAnimationFrame(renderFx);
+      bridge.postMessage({ type: "ready" });
+    </script>
+  </body>
+</html>

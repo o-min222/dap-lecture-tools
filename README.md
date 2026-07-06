@@ -18,7 +18,9 @@ This plugin expects these DAP host services:
 - `ctx.host.presentation` with the `presentation.overlay` permission
 
 The palette can open through the existing DAP palette host. The actual screen
-overlay still requires `ctx.host.presentation`.
+overlay requires `ctx.host.presentation.openOverlay()` to load
+`overlay/index.html`, plus message passing, click-through control, and cursor
+position reads.
 
 ## Architecture Rule
 
@@ -38,3 +40,4 @@ width belongs in this plugin.
 - `plugin.yaml`
 - `dap_lecture_tools/plugin.mjs`
 - `palette/index.html`
+- `overlay/index.html`
