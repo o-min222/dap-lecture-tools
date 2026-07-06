@@ -15,9 +15,10 @@ let lastDown = false;
 let currentMode = "draw";
 let currentOptions = {};
 let interactiveTimer = null;
+let paletteCloseTimer = null;
 let activeHotkeys = [];
 
-const DRAWING_MODES = new Set(["draw", "line", "rect", "ellipse"]);
+const DRAWING_MODES = new Set(["draw", "erase", "line", "rect", "ellipse"]);
 
 function presentation(ctx) {
   return ctx.host && ctx.host.presentation;
@@ -99,6 +100,7 @@ function registerCanvasHotkeys(ctx) {
   if (!api || typeof api.register !== "function" || activeHotkeys.length) return;
   const bindings = [
     ["P", () => isPaletteVisible() && setMode(ctx, "draw")],
+    ["E", () => isPaletteVisible() && setMode(ctx, "erase")],
     ["S", () => isPaletteVisible() && setMode(ctx, "spotlight")],
     ["L", () => isPaletteVisible() && setMode(ctx, "line")],
     ["R", () => isPaletteVisible() && setMode(ctx, "rect")],
@@ -153,6 +155,26 @@ function stopCursorPump() {
   if (cursorTimer) clearInterval(cursorTimer);
   cursorTimer = null;
   lastDown = false;
+}
+
+function stopPaletteCloseWatch() {
+  if (paletteCloseTimer) clearInterval(paletteCloseTimer);
+  paletteCloseTimer = null;
+}
+
+function startPaletteCloseWatch(ctx) {
+  if (paletteCloseTimer) return;
+  paletteCloseTimer = setInterval(() => {
+    if (!paletteHandle) {
+      stopPaletteCloseWatch();
+      return;
+    }
+    if (isAlive(paletteHandle)) return;
+    paletteHandle = null;
+    stopPaletteCloseWatch();
+    closeOverlay(ctx);
+  }, 200);
+  paletteCloseTimer.unref && paletteCloseTimer.unref();
 }
 
 function normalizePoint(raw) {
@@ -326,10 +348,11 @@ function openPalette(ctx) {
     return true;
   }
   const vertical = currentOptions.layout === "vertical";
-  paletteHandle = win.openPalette({ page: "palette/index.html", width: vertical ? 74 : 450, height: vertical ? 488 : 42, frame: false, closeOnPetDrop: true });
+  paletteHandle = win.openPalette({ page: "palette/index.html", width: vertical ? 74 : 486, height: vertical ? 522 : 42, frame: false, closeOnPetDrop: true });
   if (paletteHandle && typeof paletteHandle.onMessage === "function") {
     paletteHandle.onMessage((msg) => onPaletteMessage(ctx, msg));
   }
+  startPaletteCloseWatch(ctx);
   if (overlayVisible) registerCanvasHotkeys(ctx);
   postPaletteState();
   return true;
@@ -338,6 +361,7 @@ function openPalette(ctx) {
 function closePalette() {
   if (isAlive(paletteHandle) && typeof paletteHandle.close === "function") paletteHandle.close();
   paletteHandle = null;
+  stopPaletteCloseWatch();
 }
 
 function togglePalette(ctx) {
@@ -406,6 +430,7 @@ export function activate(ctx) {
   ctx.actions.registerAction({ id: "toggle", callback: () => togglePalette(ctx) });
   ctx.actions.registerAction({ id: "openPalette", callback: () => openPalette(ctx) });
   ctx.actions.registerAction({ id: "drawMode", callback: () => toggleMode(ctx, "draw") });
+  ctx.actions.registerAction({ id: "eraseMode", callback: () => toggleMode(ctx, "erase") });
   ctx.actions.registerAction({ id: "spotlightMode", callback: () => toggleMode(ctx, "spotlight") });
   ctx.actions.registerAction({ id: "lineMode", callback: () => toggleMode(ctx, "line") });
   ctx.actions.registerAction({ id: "rectMode", callback: () => toggleMode(ctx, "rect") });

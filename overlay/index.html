@@ -59,7 +59,7 @@
       let view = { w: 1, h: 1 };
       let strokes = [];
       let currentStroke = null;
-      const drawingModes = new Set(["draw", "line", "rect", "ellipse"]);
+      const drawingModes = new Set(["draw", "erase", "line", "rect", "ellipse"]);
 
       function viewportSize() {
         const vv = window.visualViewport;
@@ -98,8 +98,9 @@
         ctx.save();
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
-        ctx.strokeStyle = stroke.color;
-        ctx.lineWidth = stroke.width;
+        if (stroke.kind === "eraser") ctx.globalCompositeOperation = "destination-out";
+        ctx.strokeStyle = stroke.kind === "eraser" ? "rgba(0,0,0,1)" : stroke.color;
+        ctx.lineWidth = stroke.kind === "eraser" ? stroke.width * 4 : stroke.width;
         ctx.beginPath();
         const first = stroke.points[0];
         const last = stroke.points[stroke.points.length - 1];
@@ -157,7 +158,7 @@
         e.preventDefault();
         try { ink.setPointerCapture(e.pointerId); } catch {}
         currentStroke = {
-          kind: mode === "draw" ? "freehand" : mode,
+          kind: mode === "draw" ? "freehand" : mode === "erase" ? "eraser" : mode,
           color: options.color || "#ffcc00",
           width: Number(options.strokeWidth) || 4,
           points: [{ x: e.clientX, y: e.clientY }],
@@ -168,7 +169,7 @@
       function moveStroke(e) {
         if (!currentStroke) return;
         e.preventDefault();
-        if (currentStroke.kind === "freehand") currentStroke.points.push({ x: e.clientX, y: e.clientY });
+        if (currentStroke.kind === "freehand" || currentStroke.kind === "eraser") currentStroke.points.push({ x: e.clientX, y: e.clientY });
         else currentStroke.points[1] = { x: e.clientX, y: e.clientY };
         cursor = { x: e.clientX, y: e.clientY };
         renderInk();
@@ -195,6 +196,9 @@
         if ((e.ctrlKey || e.metaKey) && key === "z") {
           e.preventDefault();
           bridge.postMessage({ type: "hotkey", command: "undo" });
+        } else if (key === "e") {
+          e.preventDefault();
+          bridge.postMessage({ type: "hotkey", mode: "erase" });
         } else if (key === "p") {
           e.preventDefault();
           bridge.postMessage({ type: "hotkey", mode: "draw" });
