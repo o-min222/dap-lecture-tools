@@ -2,6 +2,25 @@
 
 Lecture Tools plugin for DAP.
 
+## Install
+
+Use the DAP plugin catalog entry:
+
+```json
+{
+  "id": "dap.lecture_tools",
+  "name": "Lecture Tools",
+  "description": "강사용 커서 강조, 판서, spotlight 오버레이 컨트롤",
+  "repo": "o-min222/dap-lecture-tools",
+  "ref": "v0.3.1"
+}
+```
+
+Manual download:
+
+- Release: https://github.com/o-min222/dap-lecture-tools/releases/tag/v0.3.1
+- Source zip: https://github.com/o-min222/dap-lecture-tools/archive/refs/tags/v0.3.1.zip
+
 ## What It Provides
 
 - A compact paint-like palette window
