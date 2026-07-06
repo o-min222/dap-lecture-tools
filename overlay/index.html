@@ -19,7 +19,7 @@
         height: 100vh;
       }
       #ink { pointer-events: none; }
-      body.draw #ink { pointer-events: auto; cursor: crosshair; }
+      body.draw #ink { pointer-events: auto; cursor: crosshair; touch-action: none; }
       #fx { pointer-events: none; }
     </style>
   </head>
@@ -153,6 +153,7 @@
 
       function beginStroke(e) {
         if (mode !== "draw") return;
+        e.preventDefault();
         ink.setPointerCapture(e.pointerId);
         currentStroke = {
           color: options.color || "#ffcc00",
@@ -165,6 +166,7 @@
 
       function moveStroke(e) {
         if (!currentStroke) return;
+        e.preventDefault();
         currentStroke.points.push({ x: e.clientX, y: e.clientY });
         cursor = { x: e.clientX, y: e.clientY };
         renderInk();
@@ -172,6 +174,7 @@
 
       function endStroke(e) {
         if (!currentStroke) return;
+        e.preventDefault();
         if (currentStroke.points.length > 1) strokes.push(currentStroke);
         currentStroke = null;
         try { ink.releasePointerCapture(e.pointerId); } catch {}

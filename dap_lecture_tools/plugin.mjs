@@ -14,6 +14,7 @@ let cursorTimer = null;
 let lastDown = false;
 let currentMode = "cursor";
 let currentOptions = {};
+let interactiveTimer = null;
 
 function presentation(ctx) {
   return ctx.host && ctx.host.presentation;
@@ -82,6 +83,16 @@ function setOverlayInteractive(ctx) {
   else if (api && typeof api.setInteractive === "function") api.setInteractive(on);
 }
 
+function syncOverlayInteractive(ctx) {
+  setOverlayInteractive(ctx);
+  if (interactiveTimer) clearTimeout(interactiveTimer);
+  interactiveTimer = setTimeout(() => {
+    setOverlayInteractive(ctx);
+    interactiveTimer = null;
+  }, 180);
+  interactiveTimer.unref && interactiveTimer.unref();
+}
+
 function postOverlayState(ctx) {
   overlayPost(ctx, { type: "state", mode: currentMode, options: currentOptions });
 }
@@ -129,6 +140,7 @@ function onOverlayMessage(ctx, msg) {
   if (msg.type === "ready") {
     overlayOpened = true;
     overlayVisible = true;
+    syncOverlayInteractive(ctx);
     postOverlayState(ctx);
     postPaletteState();
   }
@@ -163,7 +175,7 @@ function ensureOverlay(ctx) {
   }
   overlayOpened = true;
   overlayVisible = true;
-  setOverlayInteractive(ctx);
+  syncOverlayInteractive(ctx);
   startCursorPump(ctx);
   postState(ctx);
   return true;
@@ -186,6 +198,8 @@ function closeOverlay(ctx) {
   overlayHandle = null;
   overlayOpened = false;
   overlayVisible = false;
+  if (interactiveTimer) clearTimeout(interactiveTimer);
+  interactiveTimer = null;
   stopCursorPump();
   postPaletteState();
 }
@@ -198,7 +212,7 @@ function toggleOverlay(ctx) {
 function setMode(ctx, mode) {
   currentMode = mode;
   if (ensureOverlay(ctx)) {
-    setOverlayInteractive(ctx);
+    syncOverlayInteractive(ctx);
     postState(ctx);
   }
 }
@@ -245,7 +259,7 @@ function openPalette(ctx) {
     postPaletteState();
     return true;
   }
-  paletteHandle = win.openPalette({ page: "palette/index.html", width: 430, height: 210, frame: false });
+  paletteHandle = win.openPalette({ page: "palette/index.html", width: 720, height: 84, frame: false });
   if (paletteHandle && typeof paletteHandle.onMessage === "function") {
     paletteHandle.onMessage((msg) => onPaletteMessage(ctx, msg));
   }
