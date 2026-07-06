@@ -64,7 +64,9 @@ function isAlive(handle) {
 
 function postPaletteState() {
   if (!isAlive(paletteHandle)) return;
-  paletteHandle.postMessage({ type: "state", mode: currentMode, options: currentOptions, overlayVisible });
+  if (typeof paletteHandle.postMessage === "function") {
+    paletteHandle.postMessage({ type: "state", mode: currentMode, options: currentOptions, overlayVisible });
+  }
 }
 
 function overlayPost(ctx, msg) {
@@ -139,17 +141,22 @@ function ensureOverlay(ctx) {
     return false;
   }
   if (!overlayOpened && !isAlive(overlayHandle)) {
-    overlayHandle = api.openOverlay({
-      page: "overlay/index.html",
-      width: "screen",
-      height: "screen",
-      clickThrough: true,
-    });
+    try {
+      overlayHandle = api.openOverlay({
+        page: "overlay/index.html",
+        width: "screen",
+        height: "screen",
+        clickThrough: true,
+      });
+    } catch {
+      speak(ctx, "강의 오버레이를 열 수 없어요.");
+      return false;
+    }
     const messageSource = isAlive(overlayHandle) && typeof overlayHandle.onMessage === "function" ? overlayHandle : api;
     if (messageSource && typeof messageSource.onMessage === "function") {
       disposeOverlayMessages = messageSource.onMessage((msg) => onOverlayMessage(ctx, msg));
     }
-  } else if (typeof overlayHandle.show === "function") {
+  } else if (isAlive(overlayHandle) && typeof overlayHandle.show === "function") {
     overlayHandle.show();
   } else if (typeof api.showOverlay === "function") {
     api.showOverlay();
@@ -234,24 +241,26 @@ function openPalette(ctx) {
   }
   mergedOptions(ctx);
   if (isAlive(paletteHandle)) {
-    paletteHandle.show();
+    if (typeof paletteHandle.show === "function") paletteHandle.show();
     postPaletteState();
     return true;
   }
-  paletteHandle = win.openPalette({ page: "palette/index.html", width: 536, height: 126, frame: false });
-  paletteHandle.onMessage((msg) => onPaletteMessage(ctx, msg));
+  paletteHandle = win.openPalette({ page: "palette/index.html", width: 430, height: 210, frame: false });
+  if (paletteHandle && typeof paletteHandle.onMessage === "function") {
+    paletteHandle.onMessage((msg) => onPaletteMessage(ctx, msg));
+  }
   postPaletteState();
   return true;
 }
 
 function closePalette() {
-  if (isAlive(paletteHandle)) paletteHandle.close();
+  if (isAlive(paletteHandle) && typeof paletteHandle.close === "function") paletteHandle.close();
   paletteHandle = null;
 }
 
 function togglePalette(ctx) {
-  if (isAlive(paletteHandle) && paletteHandle.isVisible()) {
-    paletteHandle.hide();
+  if (isAlive(paletteHandle) && typeof paletteHandle.isVisible === "function" && paletteHandle.isVisible()) {
+    if (typeof paletteHandle.hide === "function") paletteHandle.hide();
     return true;
   }
   return openPalette(ctx);

@@ -1,6 +1,6 @@
 id: dap.lecture_tools
 name: Lecture Tools
-version: 0.3.4
+version: 0.3.5
 manifest_version: 2
 entry: dap_lecture_tools.plugin:activate
 description: 강사용 커서 강조, 판서, spotlight 오버레이 컨트롤.

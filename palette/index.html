@@ -6,20 +6,21 @@
     <title>Lecture Tools</title>
     <style>
       :root {
-        --bg: #1f2328;
-        --panel: #2b3037;
-        --panel-2: #363d46;
-        --border: #454d57;
-        --text: #f6f8fa;
-        --muted: #9aa4b2;
+        --bg: #202124;
+        --panel: #2a2d32;
+        --panel-2: #343941;
+        --border: #454b55;
+        --text: #f4f6f8;
+        --muted: #a7b0bc;
         --accent: #ffcc00;
+        --danger: #ff6b6b;
       }
       * { box-sizing: border-box; }
-      html, body { margin: 0; min-height: 100%; }
+      html, body { margin: 0; height: 100%; }
       body {
         background: var(--bg);
         color: var(--text);
-        font: 13px/1.4 -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+        font: 13px/1.35 -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
         user-select: none;
       }
       button {
@@ -29,184 +30,206 @@
         font: inherit;
         cursor: pointer;
       }
-      #wrap {
-        padding: 8px;
-        position: relative;
+      #panel {
+        height: 100%;
+        display: grid;
+        grid-template-rows: 34px 1fr;
+        border: 1px solid var(--border);
+        background: var(--panel);
       }
-      #toolbar {
+      #titlebar {
         -webkit-app-region: drag;
         display: flex;
         align-items: center;
-        gap: 6px;
-        height: 52px;
-        padding: 6px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        background: var(--panel);
-        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+        gap: 8px;
+        padding: 0 10px;
+        border-bottom: 1px solid var(--border);
       }
       .grip {
-        width: 14px;
-        height: 28px;
-        flex: 0 0 auto;
+        width: 12px;
+        height: 18px;
         border-radius: 6px;
-        background:
-          radial-gradient(circle, var(--muted) 1.5px, transparent 1.7px) 0 0 / 7px 7px;
+        background: radial-gradient(circle, var(--muted) 1.4px, transparent 1.6px) 0 0 / 6px 6px;
         opacity: 0.8;
       }
-      .sep {
-        width: 1px;
-        height: 26px;
-        background: var(--border);
-        margin: 0 1px;
+      .title { font-weight: 700; }
+      #status {
+        margin-left: auto;
+        color: var(--muted);
+        font-size: 12px;
       }
-      .tool {
-        width: 38px;
-        height: 38px;
+      .icon {
+        width: 30px;
+        height: 30px;
         display: grid;
         place-items: center;
         border-radius: 7px;
         background: transparent;
+        color: var(--muted);
       }
-      .tool:hover, .tool.open { background: var(--panel-2); }
-      .tool.active {
-        background: rgba(255, 204, 0, 0.16);
-        color: var(--accent);
-        box-shadow: inset 0 0 0 1px rgba(255, 204, 0, 0.55);
-      }
-      .tool svg {
-        width: 20px;
-        height: 20px;
+      .icon:hover { background: var(--panel-2); color: var(--text); }
+      svg {
+        width: 18px;
+        height: 18px;
         fill: none;
         stroke: currentColor;
         stroke-linecap: round;
         stroke-linejoin: round;
         stroke-width: 2;
       }
-      .swatch-dot {
-        width: 19px;
-        height: 19px;
-        border-radius: 50%;
-        border: 2px solid rgba(255, 255, 255, 0.85);
-        background: var(--accent);
+      main {
+        padding: 10px;
+        display: grid;
+        gap: 10px;
       }
-      .stroke-dot {
-        width: 22px;
+      #modes {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+      .mode {
+        min-width: 0;
+        height: 72px;
+        display: grid;
+        place-items: center;
+        gap: 4px;
+        padding: 8px 4px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #24272c;
+      }
+      .mode:hover { background: var(--panel-2); }
+      .mode.active {
+        border-color: var(--accent);
+        background: rgba(255, 204, 0, 0.13);
+        color: var(--accent);
+        box-shadow: inset 0 0 0 1px rgba(255, 204, 0, 0.45);
+      }
+      .mode span {
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      #controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+      .group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
+      .swatch {
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        background: var(--c);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65);
+      }
+      .swatch.active {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .size {
+        width: 28px;
+        height: 24px;
+        display: grid;
+        place-items: center;
+        border-radius: 6px;
+        background: #24272c;
+        box-shadow: inset 0 0 0 1px var(--border);
+      }
+      .size span {
+        width: 17px;
         border-radius: 999px;
         background: currentColor;
       }
-      .popover {
-        -webkit-app-region: no-drag;
-        position: absolute;
-        top: 68px;
-        left: 158px;
-        display: none;
-        align-items: center;
-        gap: 8px;
-        min-height: 44px;
-        padding: 7px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        background: var(--panel);
-        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34);
-        z-index: 10;
-      }
-      .popover.open { display: flex; }
-      #sizePanel { left: 202px; }
-      .swatch, .size {
-        width: 30px;
-        height: 30px;
-        display: grid;
-        place-items: center;
-        border-radius: 7px;
-        background: var(--panel-2);
-        box-shadow: inset 0 0 0 1px var(--border);
-      }
-      .swatch span {
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        background: var(--c);
-        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.72);
-      }
-      .swatch.active, .size.active {
+      .size.active {
+        color: var(--accent);
         box-shadow: inset 0 0 0 2px var(--accent);
       }
-      .size span {
-        width: 19px;
-        border-radius: 999px;
-        background: var(--text);
+      .push { margin-left: auto; }
+      .action {
+        min-width: 34px;
+        height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        padding: 0 9px;
+        border-radius: 7px;
+        background: #24272c;
+        box-shadow: inset 0 0 0 1px var(--border);
       }
+      .action:hover { background: var(--panel-2); }
+      #clear { color: var(--danger); }
     </style>
   </head>
   <body>
-    <div id="wrap">
-      <div id="toolbar">
-        <div class="grip" title="이동"></div>
-        <button class="tool" data-mode="cursor" title="커서 강조" aria-label="커서 강조">
-          <svg viewBox="0 0 24 24"><path d="M4 4l7 16 2-7 7-2L4 4z"/></svg>
-        </button>
-        <button class="tool" data-mode="draw" title="펜" aria-label="펜">
-          <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-        </button>
-        <button class="tool" data-mode="spotlight" title="스포트라이트" aria-label="스포트라이트">
-          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-        </button>
-        <span class="sep"></span>
-        <button class="tool" id="colorButton" title="색상" aria-label="색상">
-          <span class="swatch-dot"></span>
-        </button>
-        <button class="tool" id="sizeButton" title="두께" aria-label="두께">
-          <span class="stroke-dot"></span>
-        </button>
-        <span class="sep"></span>
-        <button class="tool" id="undo" title="되돌리기" aria-label="되돌리기">
-          <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-1"/></svg>
-        </button>
-        <button class="tool" id="clear" title="모두 지우기" aria-label="모두 지우기">
-          <svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 15h10l1-15"/></svg>
-        </button>
-        <button class="tool" id="toggleOverlay" title="오버레이 켜기/끄기" aria-label="오버레이 켜기/끄기">
-          <svg viewBox="0 0 24 24"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg>
-        </button>
-        <button class="tool" id="hideOverlay" title="숨기기" aria-label="숨기기">
+    <div id="panel">
+      <div id="titlebar">
+        <span class="grip" title="이동"></span>
+        <span class="title">강의 도구</span>
+        <span id="status">대기</span>
+        <button class="icon" id="hideOverlay" title="오버레이 숨기기" aria-label="오버레이 숨기기">
           <svg viewBox="0 0 24 24"><path d="M17.9 17.9A10.7 10.7 0 0 1 12 20C5 20 2 12 2 12a18 18 0 0 1 5.1-5.9"/><path d="M9.9 4.2A10.3 10.3 0 0 1 12 4c7 0 10 8 10 8a17.8 17.8 0 0 1-2.1 3.4"/><path d="M3 3l18 18"/></svg>
         </button>
-        <button class="tool" id="close" title="닫기" aria-label="닫기">
+        <button class="icon" id="close" title="닫기" aria-label="닫기">
           <svg viewBox="0 0 24 24"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
         </button>
       </div>
 
-      <div class="popover" id="colorPanel">
-        <button class="swatch" data-color="#ffcc00" title="노랑" aria-label="노랑" style="--c:#ffcc00"><span></span></button>
-        <button class="swatch" data-color="#ff4d4f" title="빨강" aria-label="빨강" style="--c:#ff4d4f"><span></span></button>
-        <button class="swatch" data-color="#40c057" title="초록" aria-label="초록" style="--c:#40c057"><span></span></button>
-        <button class="swatch" data-color="#339af0" title="파랑" aria-label="파랑" style="--c:#339af0"><span></span></button>
-        <button class="swatch" data-color="#f8f9fa" title="흰색" aria-label="흰색" style="--c:#f8f9fa"><span></span></button>
-      </div>
+      <main>
+        <div id="modes">
+          <button class="mode" data-mode="cursor" title="커서 강조">
+            <svg viewBox="0 0 24 24"><path d="M4 4l7 16 2-7 7-2L4 4z"/></svg>
+            <span>커서</span>
+          </button>
+          <button class="mode" data-mode="draw" title="화면 판서">
+            <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+            <span>펜</span>
+          </button>
+          <button class="mode" data-mode="spotlight" title="스포트라이트">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <span>조명</span>
+          </button>
+        </div>
 
-      <div class="popover" id="sizePanel">
-        <button class="size" data-size="3" title="얇게" aria-label="얇게"><span style="height:3px"></span></button>
-        <button class="size" data-size="4" title="보통" aria-label="보통"><span style="height:5px"></span></button>
-        <button class="size" data-size="7" title="굵게" aria-label="굵게"><span style="height:8px"></span></button>
-      </div>
+        <div id="controls">
+          <div class="group" id="colors">
+            <button class="swatch" data-color="#ffcc00" title="노랑" aria-label="노랑" style="--c:#ffcc00"></button>
+            <button class="swatch" data-color="#ff4d4f" title="빨강" aria-label="빨강" style="--c:#ff4d4f"></button>
+            <button class="swatch" data-color="#40c057" title="초록" aria-label="초록" style="--c:#40c057"></button>
+            <button class="swatch" data-color="#339af0" title="파랑" aria-label="파랑" style="--c:#339af0"></button>
+            <button class="swatch" data-color="#f8f9fa" title="흰색" aria-label="흰색" style="--c:#f8f9fa"></button>
+          </div>
+          <div class="group" id="sizes">
+            <button class="size" data-size="3" title="얇게" aria-label="얇게"><span style="height:3px"></span></button>
+            <button class="size" data-size="4" title="보통" aria-label="보통"><span style="height:5px"></span></button>
+            <button class="size" data-size="7" title="굵게" aria-label="굵게"><span style="height:8px"></span></button>
+          </div>
+          <button class="action push" id="undo" title="되돌리기" aria-label="되돌리기">
+            <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-1"/></svg>
+          </button>
+          <button class="action" id="clear" title="모두 지우기" aria-label="모두 지우기">
+            <svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 15h10l1-15"/></svg>
+          </button>
+        </div>
+      </main>
     </div>
 
     <script>
-      const dap = window.dapPalette;
-      const colorPanel = document.getElementById("colorPanel");
-      const sizePanel = document.getElementById("sizePanel");
-      const colorButton = document.getElementById("colorButton");
-      const sizeButton = document.getElementById("sizeButton");
+      const dap = window.dapPalette || {
+        postMessage() {},
+        onMessage() { return () => {}; },
+        close() {},
+      };
+      const statusEl = document.getElementById("status");
       let state = { mode: "cursor", options: { color: "#ffcc00", strokeWidth: 4 }, overlayVisible: false };
 
       function post(msg) { dap.postMessage(msg); }
-      function closePanels(except) {
-        if (except !== colorPanel) colorPanel.classList.remove("open");
-        if (except !== sizePanel) sizePanel.classList.remove("open");
-        colorButton.classList.toggle("open", colorPanel.classList.contains("open"));
-        sizeButton.classList.toggle("open", sizePanel.classList.contains("open"));
-      }
       function setActive() {
         document.querySelectorAll("[data-mode]").forEach((btn) => {
           btn.classList.toggle("active", btn.dataset.mode === state.mode);
@@ -217,9 +240,8 @@
         document.querySelectorAll("[data-size]").forEach((btn) => {
           btn.classList.toggle("active", Number(btn.dataset.size) === Number(state.options.strokeWidth));
         });
-        document.querySelector(".swatch-dot").style.background = state.options.color;
-        document.querySelector(".stroke-dot").style.height = Math.min(9, Number(state.options.strokeWidth) + 1) + "px";
-        document.getElementById("toggleOverlay").classList.toggle("active", state.overlayVisible);
+        const names = { cursor: "커서", draw: "펜", spotlight: "조명" };
+        statusEl.textContent = state.overlayVisible ? names[state.mode] || "켜짐" : "대기";
       }
       function patchOptions(options) {
         state.options = { ...state.options, ...options };
@@ -228,41 +250,23 @@
       }
 
       document.getElementById("close").addEventListener("click", () => dap.close());
+      document.getElementById("hideOverlay").addEventListener("click", () => post({ type: "hideOverlay" }));
       document.getElementById("undo").addEventListener("click", () => post({ type: "undo" }));
       document.getElementById("clear").addEventListener("click", () => post({ type: "clear" }));
-      document.getElementById("toggleOverlay").addEventListener("click", () => post({ type: "toggleOverlay" }));
-      document.getElementById("hideOverlay").addEventListener("click", () => post({ type: "hideOverlay" }));
-      colorButton.addEventListener("click", () => {
-        colorPanel.classList.toggle("open");
-        closePanels(colorPanel);
-      });
-      sizeButton.addEventListener("click", () => {
-        sizePanel.classList.toggle("open");
-        closePanels(sizePanel);
-      });
 
       document.querySelectorAll("[data-mode]").forEach((btn) => {
         btn.addEventListener("click", () => {
           state.mode = btn.dataset.mode;
-          closePanels();
+          state.overlayVisible = true;
           setActive();
           post({ type: "mode", mode: state.mode });
         });
       });
       document.querySelectorAll("[data-color]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          closePanels();
-          patchOptions({ color: btn.dataset.color });
-        });
+        btn.addEventListener("click", () => patchOptions({ color: btn.dataset.color }));
       });
       document.querySelectorAll("[data-size]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          closePanels();
-          patchOptions({ strokeWidth: Number(btn.dataset.size) });
-        });
-      });
-      document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") closePanels();
+        btn.addEventListener("click", () => patchOptions({ strokeWidth: Number(btn.dataset.size) }));
       });
 
       dap.onMessage((msg) => {
