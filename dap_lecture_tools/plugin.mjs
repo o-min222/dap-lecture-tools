@@ -238,7 +238,7 @@ function openPalette(ctx) {
     postPaletteState();
     return true;
   }
-  paletteHandle = win.openPalette({ page: "palette/index.html", width: 320, height: 430, frame: false });
+  paletteHandle = win.openPalette({ page: "palette/index.html", width: 536, height: 126, frame: false });
   paletteHandle.onMessage((msg) => onPaletteMessage(ctx, msg));
   postPaletteState();
   return true;
