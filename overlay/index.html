@@ -19,7 +19,7 @@
         height: 100vh;
       }
       #ink { pointer-events: none; }
-      body.draw #ink { pointer-events: auto; cursor: crosshair; touch-action: none; }
+      body.inking { cursor: crosshair; touch-action: none; }
       #fx { pointer-events: none; }
     </style>
   </head>
@@ -129,13 +129,13 @@
 
       function setMode(next) {
         mode = next;
-        document.body.classList.toggle("draw", drawingModes.has(mode));
+        document.body.classList.toggle("inking", drawingModes.has(mode));
       }
 
       function beginStroke(e) {
         if (!drawingModes.has(mode)) return;
         e.preventDefault();
-        ink.setPointerCapture(e.pointerId);
+        try { ink.setPointerCapture(e.pointerId); } catch {}
         currentStroke = {
           kind: mode === "draw" ? "freehand" : mode,
           color: options.color || "#ffcc00",
@@ -163,10 +163,10 @@
         renderInk();
       }
 
-      ink.addEventListener("pointerdown", beginStroke);
-      ink.addEventListener("pointermove", moveStroke);
-      ink.addEventListener("pointerup", endStroke);
-      ink.addEventListener("pointercancel", endStroke);
+      window.addEventListener("pointerdown", beginStroke, true);
+      window.addEventListener("pointermove", moveStroke, true);
+      window.addEventListener("pointerup", endStroke, true);
+      window.addEventListener("pointercancel", endStroke, true);
       document.body.addEventListener("pointermove", (e) => {
         cursor = { x: e.clientX, y: e.clientY };
       });
