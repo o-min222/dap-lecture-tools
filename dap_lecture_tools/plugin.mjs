@@ -2,7 +2,8 @@ const PLUGIN_ID = "dap.lecture_tools";
 const SETTINGS_LOCAL_ID = "general";
 const SETTINGS_FULL_ID = `${PLUGIN_ID}.${SETTINGS_LOCAL_ID}`;
 
-const MOD_NONE = 0;
+const MOD_CONTROL = 0x2;
+const MOD_SHIFT = 0x4;
 
 let paletteHandle = null;
 let overlayHandle = null;
@@ -11,9 +12,10 @@ let overlayVisible = false;
 let disposeOverlayMessages = null;
 let cursorTimer = null;
 let lastDown = false;
-let currentMode = "cursor";
+let currentMode = "draw";
 let currentOptions = {};
 let interactiveTimer = null;
+let activeHotkeys = [];
 
 const DRAWING_MODES = new Set(["draw", "line", "rect", "ellipse"]);
 
@@ -23,6 +25,10 @@ function presentation(ctx) {
 
 function windows(ctx) {
   return ctx.host && ctx.host.windows;
+}
+
+function hotkey(ctx) {
+  return ctx.host && ctx.host.hotkey;
 }
 
 function speak(ctx, text) {
@@ -44,19 +50,18 @@ function settings(ctx) {
 function optionsFromSettings(values) {
   const color = typeof values.color === "string" && values.color ? values.color : "#ffcc00";
   const strokeWidth = Number.parseInt(String(values.strokeWidth || "4"), 10);
-  const spotlightSize = Number.parseInt(String(values.spotlightSize || "220"), 10);
+  const spotlightSize = Number.parseInt(String(values.spotlightSize || "170"), 10);
   return {
-    cursorHighlight: values.cursorHighlight !== false,
-    clickRipple: values.clickRipple !== false,
+    layout: values.layout === "vertical" ? "vertical" : "horizontal",
     color,
     strokeWidth: Number.isFinite(strokeWidth) ? strokeWidth : 4,
-    spotlightSize: Number.isFinite(spotlightSize) ? spotlightSize : 220,
-    spotlightDim: 0.55,
+    spotlightSize: Number.isFinite(spotlightSize) ? spotlightSize : 170,
+    spotlightDim: 0.62,
   };
 }
 
 function mergedOptions(ctx, patch) {
-  currentOptions = { ...optionsFromSettings(settings(ctx)), ...currentOptions, ...(patch || {}) };
+  currentOptions = { ...currentOptions, ...optionsFromSettings(settings(ctx)), ...(patch || {}) };
   return currentOptions;
 }
 
@@ -78,10 +83,46 @@ function overlayPost(ctx, msg) {
 }
 
 function setOverlayInteractive(ctx) {
-  const on = DRAWING_MODES.has(currentMode);
+  const on = overlayVisible;
   const api = presentation(ctx);
   if (isAlive(overlayHandle) && typeof overlayHandle.setInteractive === "function") overlayHandle.setInteractive(on);
   else if (api && typeof api.setInteractive === "function") api.setInteractive(on);
+}
+
+function registerCanvasHotkeys(ctx) {
+  const api = hotkey(ctx);
+  if (!api || typeof api.register !== "function" || activeHotkeys.length) return;
+  const bindings = [
+    ["P", () => setMode(ctx, "draw")],
+    ["S", () => setMode(ctx, "spotlight")],
+    ["L", () => setMode(ctx, "line")],
+    ["R", () => setMode(ctx, "rect")],
+    ["O", () => setMode(ctx, "ellipse")],
+    ["H", () => hideOverlay(ctx)],
+    ["X", () => overlayVisible && overlayPost(ctx, { type: "clear" })],
+    ["CommandOrControl+Z", () => overlayVisible && overlayPost(ctx, { type: "undo" })],
+  ];
+  for (const [accelerator, callback] of bindings) {
+    try {
+      if (api.register(accelerator, callback)) activeHotkeys.push(accelerator);
+    } catch {
+      /* dynamic canvas hotkeys are best-effort */
+    }
+  }
+}
+
+function unregisterCanvasHotkeys(ctx) {
+  const api = hotkey(ctx);
+  if (api && typeof api.unregister === "function") {
+    for (const accelerator of activeHotkeys) {
+      try {
+        api.unregister(accelerator);
+      } catch {
+        /* ignore cleanup failures */
+      }
+    }
+  }
+  activeHotkeys = [];
 }
 
 function syncOverlayInteractive(ctx) {
@@ -144,13 +185,16 @@ function onOverlayMessage(ctx, msg) {
     syncOverlayInteractive(ctx);
     postOverlayState(ctx);
     postPaletteState();
+  } else if (msg.type === "hotkey") {
+    if (msg.command === "hide") hideOverlay(ctx);
+    else if (msg.mode === "spotlight" || DRAWING_MODES.has(msg.mode)) setMode(ctx, msg.mode);
   }
 }
 
 function ensureOverlay(ctx) {
   const api = presentation(ctx);
   if (!api || typeof api.openOverlay !== "function") {
-    speak(ctx, "강의 도구는 DAP host의 presentation overlay 업데이트가 필요해요.");
+    speak(ctx, "강의 도구는 DAP host의 화면 캔버스 지원이 필요해요.");
     return false;
   }
   if (!overlayOpened && !isAlive(overlayHandle)) {
@@ -159,10 +203,10 @@ function ensureOverlay(ctx) {
         page: "overlay/index.html",
         width: "screen",
         height: "screen",
-        clickThrough: true,
+        clickThrough: false,
       });
     } catch {
-      speak(ctx, "강의 오버레이를 열 수 없어요.");
+      speak(ctx, "화면 캔버스를 열 수 없어요.");
       return false;
     }
     const messageSource = isAlive(overlayHandle) && typeof overlayHandle.onMessage === "function" ? overlayHandle : api;
@@ -176,6 +220,7 @@ function ensureOverlay(ctx) {
   }
   overlayOpened = true;
   overlayVisible = true;
+  registerCanvasHotkeys(ctx);
   syncOverlayInteractive(ctx);
   startCursorPump(ctx);
   postState(ctx);
@@ -187,6 +232,8 @@ function hideOverlay(ctx) {
   if (isAlive(overlayHandle) && typeof overlayHandle.hide === "function") overlayHandle.hide();
   else if (api && typeof api.hideOverlay === "function") api.hideOverlay();
   overlayVisible = false;
+  unregisterCanvasHotkeys(ctx);
+  setOverlayInteractive(ctx);
   postPaletteState();
 }
 
@@ -199,6 +246,7 @@ function closeOverlay(ctx) {
   overlayHandle = null;
   overlayOpened = false;
   overlayVisible = false;
+  unregisterCanvasHotkeys(ctx);
   if (interactiveTimer) clearTimeout(interactiveTimer);
   interactiveTimer = null;
   stopCursorPump();
@@ -230,7 +278,7 @@ function onPaletteMessage(ctx, msg) {
       postPaletteState();
       break;
     case "mode":
-      if (msg.mode === "cursor" || msg.mode === "spotlight" || DRAWING_MODES.has(msg.mode)) setMode(ctx, msg.mode);
+      if (msg.mode === "spotlight" || DRAWING_MODES.has(msg.mode)) setMode(ctx, msg.mode);
       break;
     case "toggleOverlay":
       toggleOverlay(ctx);
@@ -239,10 +287,10 @@ function onPaletteMessage(ctx, msg) {
       hideOverlay(ctx);
       break;
     case "clear":
-      ensureOverlay(ctx) && overlayPost(ctx, { type: "clear" });
+      if (overlayVisible) overlayPost(ctx, { type: "clear" });
       break;
     case "undo":
-      ensureOverlay(ctx) && overlayPost(ctx, { type: "undo" });
+      if (overlayVisible) overlayPost(ctx, { type: "undo" });
       break;
     case "options":
       mergedOptions(ctx, msg.options);
@@ -265,7 +313,8 @@ function openPalette(ctx) {
     postPaletteState();
     return true;
   }
-  paletteHandle = win.openPalette({ page: "palette/index.html", width: 748, height: 84, frame: false });
+  const vertical = currentOptions.layout === "vertical";
+  paletteHandle = win.openPalette({ page: "palette/index.html", width: vertical ? 96 : 620, height: vertical ? 636 : 76, frame: false });
   if (paletteHandle && typeof paletteHandle.onMessage === "function") {
     paletteHandle.onMessage((msg) => onPaletteMessage(ctx, msg));
   }
@@ -292,8 +341,16 @@ export function activate(ctx) {
     title: "강의 도구",
     spec: {
       fields: [
-        { key: "cursorHighlight", label: "커서 강조", type: "toggle", default: true },
-        { key: "clickRipple", label: "클릭 표시", type: "toggle", default: true },
+        {
+          key: "layout",
+          label: "팔레트 형태",
+          type: "select",
+          default: "horizontal",
+          options: [
+            { value: "horizontal", label: "가로" },
+            { value: "vertical", label: "세로" },
+          ],
+        },
         {
           key: "color",
           label: "펜 색상",
@@ -321,11 +378,11 @@ export function activate(ctx) {
           key: "spotlightSize",
           label: "Spotlight 크기",
           type: "select",
-          default: "220",
+          default: "170",
           options: [
-            { value: "160", label: "작게" },
-            { value: "220", label: "보통" },
-            { value: "320", label: "크게" },
+            { value: "120", label: "작게" },
+            { value: "170", label: "보통" },
+            { value: "240", label: "크게" },
           ],
         },
       ],
@@ -334,7 +391,6 @@ export function activate(ctx) {
 
   ctx.actions.registerAction({ id: "toggle", callback: () => togglePalette(ctx) });
   ctx.actions.registerAction({ id: "openPalette", callback: () => openPalette(ctx) });
-  ctx.actions.registerAction({ id: "cursorMode", callback: () => toggleMode(ctx, "cursor") });
   ctx.actions.registerAction({ id: "drawMode", callback: () => toggleMode(ctx, "draw") });
   ctx.actions.registerAction({ id: "spotlightMode", callback: () => toggleMode(ctx, "spotlight") });
   ctx.actions.registerAction({ id: "lineMode", callback: () => toggleMode(ctx, "line") });
@@ -354,82 +410,10 @@ export function activate(ctx) {
   ctx.shortcuts.registerShortcut({
     actionKey: "toggle_lecture_tools",
     title: "강의 도구 켜기/끄기",
-    defaultModifiers: MOD_NONE,
-    defaultVk: 0x70,
+    defaultModifiers: MOD_CONTROL | MOD_SHIFT,
+    defaultVk: 0x4c,
     actionId: "toggle",
     priority: 80,
-  });
-  ctx.shortcuts.registerShortcut({
-    actionKey: "lecture_cursor_mode",
-    title: "강의 도구 커서 강조 켜기/끄기",
-    defaultModifiers: MOD_NONE,
-    defaultVk: 0x71,
-    actionId: "cursorMode",
-    priority: 81,
-  });
-  ctx.shortcuts.registerShortcut({
-    actionKey: "lecture_draw_mode",
-    title: "강의 도구 펜 켜기/끄기",
-    defaultModifiers: MOD_NONE,
-    defaultVk: 0x73,
-    actionId: "drawMode",
-    priority: 82,
-  });
-  ctx.shortcuts.registerShortcut({
-    actionKey: "lecture_spotlight_mode",
-    title: "강의 도구 Spotlight 켜기/끄기",
-    defaultModifiers: MOD_NONE,
-    defaultVk: 0x72,
-    actionId: "spotlightMode",
-    priority: 83,
-  });
-  ctx.shortcuts.registerShortcut({
-    actionKey: "lecture_line_mode",
-    title: "강의 도구 선 그리기",
-    defaultModifiers: MOD_NONE,
-    defaultVk: 0x74,
-    actionId: "lineMode",
-    priority: 84,
-  });
-  ctx.shortcuts.registerShortcut({
-    actionKey: "lecture_rect_mode",
-    title: "강의 도구 사각형 그리기",
-    defaultModifiers: MOD_NONE,
-    defaultVk: 0x75,
-    actionId: "rectMode",
-    priority: 85,
-  });
-  ctx.shortcuts.registerShortcut({
-    actionKey: "lecture_ellipse_mode",
-    title: "강의 도구 원 그리기",
-    defaultModifiers: MOD_NONE,
-    defaultVk: 0x76,
-    actionId: "ellipseMode",
-    priority: 86,
-  });
-  ctx.shortcuts.registerShortcut({
-    actionKey: "lecture_undo",
-    title: "강의 도구 되돌리기",
-    defaultModifiers: MOD_NONE,
-    defaultVk: 0x77,
-    actionId: "undo",
-    priority: 87,
-  });
-  ctx.shortcuts.registerShortcut({
-    actionKey: "lecture_clear",
-    title: "강의 도구 모두 지우기",
-    defaultModifiers: MOD_NONE,
-    defaultVk: 0x78,
-    actionId: "clear",
-    priority: 88,
-  });
-  ctx.shortcuts.registerShortcut({
-    actionKey: "lecture_hide_overlay",
-    title: "강의 도구 오버레이 숨기기",
-    defaultModifiers: MOD_NONE,
-    defaultVk: 0x79,
-    actionId: "hideOverlay",
-    priority: 89,
   });
 
   ctx.radialMenu.addItem({ itemId: "lecture", label: "강의 도구", actionId: "toggle", priority: 60 });

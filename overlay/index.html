@@ -37,19 +37,16 @@
       const inkCtx = ink.getContext("2d");
       const fxCtx = fx.getContext("2d");
 
-      let mode = "cursor";
+      let mode = "draw";
       let options = {
-        cursorHighlight: true,
-        clickRipple: true,
         color: "#ffcc00",
         strokeWidth: 4,
-        spotlightSize: 220,
-        spotlightDim: 0.55,
+        spotlightSize: 170,
+        spotlightDim: 0.62,
       };
       let cursor = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
       let strokes = [];
       let currentStroke = null;
-      let ripples = [];
       const drawingModes = new Set(["draw", "line", "rect", "ellipse"]);
 
       function resizeCanvas(canvas, ctx) {
@@ -120,44 +117,10 @@
           fxCtx.fillStyle = `rgba(0, 0, 0, ${Number(options.spotlightDim) || 0.55})`;
           fxCtx.fillRect(0, 0, window.innerWidth, window.innerHeight);
           fxCtx.globalCompositeOperation = "destination-out";
-          const g = fxCtx.createRadialGradient(cursor.x, cursor.y, r * 0.35, cursor.x, cursor.y, r);
-          g.addColorStop(0, "rgba(0,0,0,1)");
-          g.addColorStop(1, "rgba(0,0,0,0)");
-          fxCtx.fillStyle = g;
+          fxCtx.fillStyle = "rgba(0,0,0,1)";
           fxCtx.beginPath();
           fxCtx.arc(cursor.x, cursor.y, r, 0, Math.PI * 2);
           fxCtx.fill();
-          fxCtx.restore();
-        }
-
-        if (options.cursorHighlight !== false && !drawingModes.has(mode)) {
-          const radius = mode === "cursor" ? 46 : 28;
-          fxCtx.save();
-          fxCtx.fillStyle = options.color || "#ffcc00";
-          fxCtx.globalAlpha = mode === "cursor" ? 0.13 : 0;
-          fxCtx.beginPath();
-          fxCtx.arc(cursor.x, cursor.y, radius, 0, Math.PI * 2);
-          fxCtx.fill();
-          fxCtx.strokeStyle = options.color || "#ffcc00";
-          fxCtx.lineWidth = mode === "cursor" ? 5 : 3;
-          fxCtx.globalAlpha = 0.9;
-          fxCtx.beginPath();
-          fxCtx.arc(cursor.x, cursor.y, radius, 0, Math.PI * 2);
-          fxCtx.stroke();
-          fxCtx.restore();
-        }
-
-        ripples = ripples.filter((r) => now - r.t < 550);
-        for (const r of ripples) {
-          const age = now - r.t;
-          const p = Math.min(1, age / 550);
-          fxCtx.save();
-          fxCtx.strokeStyle = options.color || "#ffcc00";
-          fxCtx.lineWidth = 3 * (1 - p);
-          fxCtx.globalAlpha = 1 - p;
-          fxCtx.beginPath();
-          fxCtx.arc(r.x, r.y, 10 + p * 34, 0, Math.PI * 2);
-          fxCtx.stroke();
           fxCtx.restore();
         }
 
@@ -179,7 +142,6 @@
           width: Number(options.strokeWidth) || 4,
           points: [{ x: e.clientX, y: e.clientY }],
         };
-        if (options.clickRipple !== false) ripples.push({ x: e.clientX, y: e.clientY, t: performance.now() });
         renderInk();
       }
 
@@ -205,6 +167,40 @@
       ink.addEventListener("pointermove", moveStroke);
       ink.addEventListener("pointerup", endStroke);
       ink.addEventListener("pointercancel", endStroke);
+      document.body.addEventListener("pointermove", (e) => {
+        cursor = { x: e.clientX, y: e.clientY };
+      });
+      window.addEventListener("keydown", (e) => {
+        const key = e.key.toLowerCase();
+        if ((e.ctrlKey || e.metaKey) && key === "z") {
+          e.preventDefault();
+          strokes.pop();
+          renderInk();
+        } else if (key === "p") {
+          e.preventDefault();
+          bridge.postMessage({ type: "hotkey", mode: "draw" });
+        } else if (key === "s") {
+          e.preventDefault();
+          bridge.postMessage({ type: "hotkey", mode: "spotlight" });
+        } else if (key === "l") {
+          e.preventDefault();
+          bridge.postMessage({ type: "hotkey", mode: "line" });
+        } else if (key === "r") {
+          e.preventDefault();
+          bridge.postMessage({ type: "hotkey", mode: "rect" });
+        } else if (key === "o") {
+          e.preventDefault();
+          bridge.postMessage({ type: "hotkey", mode: "ellipse" });
+        } else if (key === "x") {
+          e.preventDefault();
+          strokes = [];
+          currentStroke = null;
+          renderInk();
+        } else if (key === "h") {
+          e.preventDefault();
+          bridge.postMessage({ type: "hotkey", command: "hide" });
+        }
+      });
 
       bridge.onMessage((msg) => {
         if (!msg || typeof msg !== "object") return;
@@ -213,9 +209,6 @@
           options = { ...options, ...(msg.options || {}) };
         } else if (msg.type === "cursor" && msg.point) {
           cursor = screenToLocal(msg.point);
-        } else if (msg.type === "click" && msg.point && options.clickRipple !== false) {
-          const p = screenToLocal(msg.point);
-          ripples.push({ x: p.x, y: p.y, t: performance.now() });
         } else if (msg.type === "clear") {
           strokes = [];
           currentStroke = null;
