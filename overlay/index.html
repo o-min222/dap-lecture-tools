@@ -50,6 +50,7 @@
       let strokes = [];
       let currentStroke = null;
       let ripples = [];
+      const drawingModes = new Set(["draw", "line", "rect", "ellipse"]);
 
       function resizeCanvas(canvas, ctx) {
         const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -83,11 +84,22 @@
         ctx.strokeStyle = stroke.color;
         ctx.lineWidth = stroke.width;
         ctx.beginPath();
-        ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-        for (let i = 1; i < stroke.points.length; i++) {
-          const prev = stroke.points[i - 1];
-          const p = stroke.points[i];
-          ctx.quadraticCurveTo(prev.x, prev.y, (prev.x + p.x) / 2, (prev.y + p.y) / 2);
+        const first = stroke.points[0];
+        const last = stroke.points[stroke.points.length - 1];
+        if (stroke.kind === "line") {
+          ctx.moveTo(first.x, first.y);
+          ctx.lineTo(last.x, last.y);
+        } else if (stroke.kind === "rect") {
+          ctx.rect(first.x, first.y, last.x - first.x, last.y - first.y);
+        } else if (stroke.kind === "ellipse") {
+          ctx.ellipse((first.x + last.x) / 2, (first.y + last.y) / 2, Math.abs(last.x - first.x) / 2, Math.abs(last.y - first.y) / 2, 0, 0, Math.PI * 2);
+        } else {
+          ctx.moveTo(first.x, first.y);
+          for (let i = 1; i < stroke.points.length; i++) {
+            const prev = stroke.points[i - 1];
+            const p = stroke.points[i];
+            ctx.quadraticCurveTo(prev.x, prev.y, (prev.x + p.x) / 2, (prev.y + p.y) / 2);
+          }
         }
         ctx.stroke();
         ctx.restore();
@@ -118,13 +130,19 @@
           fxCtx.restore();
         }
 
-        if (options.cursorHighlight !== false && mode !== "draw") {
+        if (options.cursorHighlight !== false && !drawingModes.has(mode)) {
+          const radius = mode === "cursor" ? 46 : 28;
           fxCtx.save();
+          fxCtx.fillStyle = options.color || "#ffcc00";
+          fxCtx.globalAlpha = mode === "cursor" ? 0.13 : 0;
+          fxCtx.beginPath();
+          fxCtx.arc(cursor.x, cursor.y, radius, 0, Math.PI * 2);
+          fxCtx.fill();
           fxCtx.strokeStyle = options.color || "#ffcc00";
-          fxCtx.lineWidth = 3;
+          fxCtx.lineWidth = mode === "cursor" ? 5 : 3;
           fxCtx.globalAlpha = 0.9;
           fxCtx.beginPath();
-          fxCtx.arc(cursor.x, cursor.y, 26, 0, Math.PI * 2);
+          fxCtx.arc(cursor.x, cursor.y, radius, 0, Math.PI * 2);
           fxCtx.stroke();
           fxCtx.restore();
         }
@@ -148,14 +166,15 @@
 
       function setMode(next) {
         mode = next;
-        document.body.classList.toggle("draw", mode === "draw");
+        document.body.classList.toggle("draw", drawingModes.has(mode));
       }
 
       function beginStroke(e) {
-        if (mode !== "draw") return;
+        if (!drawingModes.has(mode)) return;
         e.preventDefault();
         ink.setPointerCapture(e.pointerId);
         currentStroke = {
+          kind: mode === "draw" ? "freehand" : mode,
           color: options.color || "#ffcc00",
           width: Number(options.strokeWidth) || 4,
           points: [{ x: e.clientX, y: e.clientY }],
@@ -167,7 +186,8 @@
       function moveStroke(e) {
         if (!currentStroke) return;
         e.preventDefault();
-        currentStroke.points.push({ x: e.clientX, y: e.clientY });
+        if (currentStroke.kind === "freehand") currentStroke.points.push({ x: e.clientX, y: e.clientY });
+        else currentStroke.points[1] = { x: e.clientX, y: e.clientY };
         cursor = { x: e.clientX, y: e.clientY };
         renderInk();
       }
