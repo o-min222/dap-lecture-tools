@@ -4,7 +4,7 @@ version: 0.3.2
 manifest_version: 2
 entry: dap_lecture_tools.plugin:activate
 description: 강사용 커서 강조, 판서, spotlight 오버레이 컨트롤.
-author: DAP
+author: o-min222
 surface: user
 permissions:
   - window.palette
