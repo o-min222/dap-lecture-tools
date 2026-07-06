@@ -7,6 +7,7 @@ const MOD_SHIFT = 0x4;
 
 let paletteHandle = null;
 let overlayHandle = null;
+let overlayOpened = false;
 let overlayVisible = false;
 let disposeOverlayMessages = null;
 let cursorTimer = null;
@@ -123,7 +124,12 @@ function startCursorPump(ctx) {
 
 function onOverlayMessage(ctx, msg) {
   if (!msg || typeof msg !== "object") return;
-  if (msg.type === "ready") postOverlayState(ctx);
+  if (msg.type === "ready") {
+    overlayOpened = true;
+    overlayVisible = true;
+    postOverlayState(ctx);
+    postPaletteState();
+  }
 }
 
 function ensureOverlay(ctx) {
@@ -132,7 +138,7 @@ function ensureOverlay(ctx) {
     speak(ctx, "강의 도구는 DAP host의 presentation overlay 업데이트가 필요해요.");
     return false;
   }
-  if (!isAlive(overlayHandle)) {
+  if (!overlayOpened && !isAlive(overlayHandle)) {
     overlayHandle = api.openOverlay({
       page: "overlay/index.html",
       width: "screen",
@@ -148,6 +154,7 @@ function ensureOverlay(ctx) {
   } else if (typeof api.showOverlay === "function") {
     api.showOverlay();
   }
+  overlayOpened = true;
   overlayVisible = true;
   setOverlayInteractive(ctx);
   startCursorPump(ctx);
@@ -170,6 +177,7 @@ function closeOverlay(ctx) {
   if (isAlive(overlayHandle) && typeof overlayHandle.close === "function") overlayHandle.close();
   else if (api && typeof api.closeOverlay === "function") api.closeOverlay();
   overlayHandle = null;
+  overlayOpened = false;
   overlayVisible = false;
   stopCursorPump();
   postPaletteState();
