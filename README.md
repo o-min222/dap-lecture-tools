@@ -29,6 +29,20 @@ Manual download:
 - Radial menu and tray menu entries
 - Basic settings for cursor, drawing, and spotlight options
 
+## Usage Notes
+
+- `Ctrl+Shift+L` toggles the screen canvas on and off. It does not hide the
+  palette.
+- The palette close button (`X`) closes the palette directly. This is separate
+  from drag-and-drop closing.
+- Dragging the palette near the pet does not close it. For drag behavior, the
+  palette closes only after it is dropped on the pet.
+- Pen color and pen width are independent. Changing the color keeps the current
+  width, and changing the width keeps the current color.
+- Pen width is controlled from the palette with a `1px` to `16px` slider.
+- The palette is kept above the lecture overlay so controls stay reachable while
+  the canvas is visible.
+
 ## Current Host Requirement
 
 This plugin expects these DAP host services:
@@ -39,7 +53,8 @@ This plugin expects these DAP host services:
 The palette can open through the existing DAP palette host. The actual screen
 overlay requires `ctx.host.presentation.openOverlay()` to load
 `overlay/index.html`, plus message passing, click-through control, and cursor
-position reads.
+position reads. Drop-on-pet closing depends on the host palette window's
+`closeOnPetDrop` support.
 
 ## Architecture Rule
 
