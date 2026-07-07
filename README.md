@@ -42,8 +42,12 @@ Manual download:
 - Pen width is controlled from the palette with a `1px` to `16px` slider.
 - Spotlight size is controlled from the palette with an `80px` to `320px`
   slider.
-- The memo button opens a clean full-screen writing view on the overlay. Type
-  the notice there, then press `Cmd/Ctrl+Enter` to show it or `Esc` to cancel.
+- The memo button opens a separate always-on-top notice window. Type the notice
+  in that clean window, then use `Show`, `Hide`, or the window close button.
+- The notice window is independent from the drawing canvas, so it can stay open
+  while the screen canvas is hidden or changed.
+- Scroll the mouse wheel or use a two-finger trackpad scroll inside the notice
+  window to adjust the notice text size.
 - The palette is kept above the lecture overlay so controls stay reachable while
   the canvas is visible.
 
@@ -57,8 +61,9 @@ This plugin expects these DAP host services:
 The palette can open through the existing DAP palette host. The actual screen
 overlay requires `ctx.host.presentation.openOverlay()` to load
 `overlay/index.html`, plus message passing, click-through control, and cursor
-position reads. Drop-on-pet closing depends on the host palette window's
-`closeOnPetDrop` support.
+position reads. The notice window uses the palette window host to load
+`notice/index.html` separately from the overlay. Drop-on-pet closing depends on
+the host palette window's `closeOnPetDrop` support.
 
 ## Architecture Rule
 
@@ -70,8 +75,8 @@ cursor position access, message bridging, permission gating, and lifecycle
 cleanup.
 
 Tool behavior such as palette UI, drawing state, canvas rendering, cursor
-highlighting, click ripple, spotlight rendering and sizing, full-screen notices,
-undo, clear, colors, and stroke width belongs in this plugin.
+highlighting, click ripple, spotlight rendering and sizing, separate notice
+window behavior, undo, clear, colors, and stroke width belongs in this plugin.
 
 ## Files
 
@@ -79,6 +84,7 @@ undo, clear, colors, and stroke width belongs in this plugin.
 - `dap_lecture_tools/plugin.mjs`
 - `palette/index.html`
 - `overlay/index.html`
+- `notice/index.html`
 
 ## Development
 

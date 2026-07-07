@@ -317,7 +317,7 @@
       <span class="divider"></span>
 
       <div class="group">
-        <button class="icon requires-canvas" id="noticeButton" title="안내 메모" aria-label="안내 메모" data-tip="안내사항 크게 표시">
+        <button class="icon" id="noticeButton" title="안내 메모" aria-label="안내 메모" data-tip="안내사항 크게 표시">
           <svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg>
         </button>
         <button class="icon requires-canvas" id="spotlightSizeButton" title="스포트라이트 크기" aria-label="스포트라이트 크기" data-tip="스포트라이트 크기 변경">
@@ -414,7 +414,7 @@
         const strokeWidth = Math.max(1, Math.min(16, Number(state.options.strokeWidth) || 4));
         const spotlightSize = Math.max(80, Math.min(320, Number(state.options.spotlightSize) || 170));
         canvasToggle.classList.toggle("active", state.overlayVisible);
-        noticeButton.classList.toggle("active", state.overlayVisible && state.noticeVisible);
+        noticeButton.classList.toggle("active", state.noticeVisible);
         document.querySelectorAll(".requires-canvas").forEach((el) => {
           el.setAttribute("aria-disabled", String(!state.overlayVisible));
         });
@@ -521,7 +521,6 @@
         closePanels(spotlightPanel);
       });
       noticeButton.addEventListener("click", () => {
-        if (!state.overlayVisible) return;
         closePanels();
         post({ type: "editNotice", text: state.noticeText || "" });
       });

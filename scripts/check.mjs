@@ -6,6 +6,7 @@ const files = [
   "dap_lecture_tools/plugin.mjs",
   "palette/index.html",
   "overlay/index.html",
+  "notice/index.html",
 ];
 
 function checkJavaScript(source, label) {

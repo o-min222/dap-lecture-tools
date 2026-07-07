@@ -8,6 +8,7 @@ const PALETTE_LEVEL = "pop-up-menu";
 
 let paletteHandle = null;
 let overlayHandle = null;
+let noticeHandle = null;
 let overlayOpened = false;
 let overlayVisible = false;
 let disposeOverlayMessages = null;
@@ -17,6 +18,7 @@ let currentMode = "draw";
 let currentOptions = {};
 let noticeText = "";
 let noticeVisible = false;
+let noticeTextSize = 58;
 let interactiveTimer = null;
 let paletteCloseTimer = null;
 let activeHotkeys = [];
@@ -127,6 +129,10 @@ function overlayPost(ctx, msg) {
   else if (api && typeof api.postMessage === "function") api.postMessage(msg);
 }
 
+function noticePost(msg) {
+  if (isAlive(noticeHandle) && typeof noticeHandle.postMessage === "function") noticeHandle.postMessage(msg);
+}
+
 function setOverlayInteractive(ctx) {
   const on = overlayVisible;
   const api = presentation(ctx);
@@ -184,13 +190,16 @@ function syncOverlayInteractive(ctx) {
 
 function postOverlayState(ctx) {
   overlayPost(ctx, { type: "state", mode: currentMode, options: currentOptions });
-  if (noticeVisible) overlayPost(ctx, { type: "notice", text: noticeText });
-  else overlayPost(ctx, { type: "hideNotice" });
+}
+
+function postNoticeState() {
+  noticePost({ type: "state", text: noticeText, visible: noticeVisible, textSize: noticeTextSize });
 }
 
 function postState(ctx) {
   postPaletteState();
   postOverlayState(ctx);
+  postNoticeState();
 }
 
 function stopCursorPump() {
@@ -260,10 +269,7 @@ function onOverlayMessage(ctx, msg) {
     if (msg.command === "hide") hideOverlay(ctx);
     else if (msg.command === "clear" && overlayVisible) overlayPost(ctx, { type: "clear" });
     else if (msg.command === "undo" && overlayVisible) overlayPost(ctx, { type: "undo" });
-    else if (msg.command === "hideNotice" && noticeVisible) hideNotice(ctx);
     else if (msg.mode === "spotlight" || DRAWING_MODES.has(msg.mode)) setMode(ctx, msg.mode);
-  } else if (msg.type === "notice") {
-    showNotice(ctx, msg.text);
   }
 }
 
@@ -309,8 +315,6 @@ function hideOverlay(ctx) {
   if (isAlive(overlayHandle) && typeof overlayHandle.hide === "function") overlayHandle.hide();
   else if (api && typeof api.hideOverlay === "function") api.hideOverlay();
   overlayVisible = false;
-  noticeVisible = false;
-  noticeText = "";
   unregisterCanvasHotkeys(ctx);
   setOverlayInteractive(ctx);
   postPaletteState();
@@ -325,12 +329,109 @@ function closeOverlay(ctx) {
   overlayHandle = null;
   overlayOpened = false;
   overlayVisible = false;
-  noticeVisible = false;
-  noticeText = "";
   unregisterCanvasHotkeys(ctx);
   if (interactiveTimer) clearTimeout(interactiveTimer);
   interactiveTimer = null;
   stopCursorPump();
+  postPaletteState();
+}
+
+function keepNoticeAbove() {
+  if (!isAlive(noticeHandle)) return;
+  try {
+    if (typeof noticeHandle.setVisibleOnAllWorkspaces === "function") noticeHandle.setVisibleOnAllWorkspaces(true);
+  } catch {
+    /* window stacking hints are best-effort */
+  }
+  try {
+    if (typeof noticeHandle.setAlwaysOnTop === "function") noticeHandle.setAlwaysOnTop(true, PALETTE_LEVEL);
+  } catch {
+    /* window stacking hints are best-effort */
+  }
+  try {
+    if (typeof noticeHandle.moveTop === "function") noticeHandle.moveTop();
+  } catch {
+    /* window stacking hints are best-effort */
+  }
+  try {
+    if (typeof noticeHandle.show === "function") noticeHandle.show();
+  } catch {
+    /* window stacking hints are best-effort */
+  }
+  try {
+    if (typeof noticeHandle.focus === "function") noticeHandle.focus();
+  } catch {
+    /* window stacking hints are best-effort */
+  }
+}
+
+function onNoticeMessage(ctx, msg) {
+  if (!msg || typeof msg !== "object") return;
+  switch (msg.type) {
+    case "ready":
+      postNoticeState();
+      break;
+    case "notice":
+      showNotice(ctx, msg.text);
+      break;
+    case "hideNotice":
+      hideNotice(ctx);
+      break;
+    case "noticeTextSize":
+      if (Number.isFinite(Number(msg.textSize))) noticeTextSize = Number(msg.textSize);
+      break;
+    case "closeNotice":
+      closeNoticeWindow();
+      break;
+    default:
+      break;
+  }
+}
+
+function openNoticeWindow(ctx, editing) {
+  const win = windows(ctx);
+  if (!win || typeof win.openPalette !== "function") {
+    speak(ctx, "안내창은 DAP host의 window.palette 권한 지원이 필요해요.");
+    return false;
+  }
+  if (isAlive(noticeHandle)) {
+    keepNoticeAbove();
+    noticePost({ type: editing ? "editNotice" : "state", text: noticeText, visible: noticeVisible, textSize: noticeTextSize });
+    return true;
+  }
+  const options = {
+    page: "notice/index.html",
+    width: 960,
+    height: 540,
+    frame: false,
+    closeOnPetDrop: false,
+    alwaysOnTop: true,
+    visibleOnAllWorkspaces: true,
+    level: PALETTE_LEVEL,
+  };
+  try {
+    noticeHandle = win.openPalette(options);
+  } catch {
+    noticeHandle = win.openPalette({
+      page: options.page,
+      width: options.width,
+      height: options.height,
+      frame: options.frame,
+      closeOnPetDrop: options.closeOnPetDrop,
+    });
+  }
+  keepNoticeAbove();
+  if (noticeHandle && typeof noticeHandle.onMessage === "function") {
+    noticeHandle.onMessage((msg) => onNoticeMessage(ctx, msg));
+  }
+  postNoticeState();
+  return true;
+}
+
+function closeNoticeWindow() {
+  if (isAlive(noticeHandle) && typeof noticeHandle.close === "function") noticeHandle.close();
+  noticeHandle = null;
+  noticeVisible = false;
   postPaletteState();
 }
 
@@ -342,24 +443,22 @@ function showNotice(ctx, text) {
   }
   noticeText = value;
   noticeVisible = true;
-  if (ensureOverlay(ctx)) {
-    overlayPost(ctx, { type: "notice", text: noticeText });
-    postPaletteState();
-  }
+  if (!openNoticeWindow(ctx, false)) return;
+  noticePost({ type: "notice", text: noticeText, textSize: noticeTextSize });
+  postPaletteState();
 }
 
 function hideNotice(ctx) {
   noticeVisible = false;
-  noticeText = "";
-  overlayPost(ctx, { type: "hideNotice" });
+  noticePost({ type: "hideNotice" });
   postPaletteState();
 }
 
 function editNotice(ctx, text) {
-  if (ensureOverlay(ctx)) {
-    overlayPost(ctx, { type: "editNotice", text: typeof text === "string" ? text : noticeText });
-    postPaletteState();
-  }
+  if (typeof text === "string") noticeText = text;
+  if (!openNoticeWindow(ctx, true)) return;
+  noticePost({ type: "editNotice", text: noticeText, textSize: noticeTextSize });
+  postPaletteState();
 }
 
 function toggleOverlay(ctx) {
@@ -588,5 +687,6 @@ export function activate(ctx) {
     closeOverlay(ctx);
     unregisterCanvasHotkeys(ctx);
     closePalette();
+    closeNoticeWindow();
   };
 }

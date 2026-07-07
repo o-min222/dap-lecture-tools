@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lecture Notice</title>
+    <style>
+      :root {
+        --bg: #f7f8fa;
+        --panel: #ffffff;
+        --text: #17191f;
+        --muted: #69707d;
+        --border: #d9dde5;
+        --accent: #ffcc00;
+        --danger: #d94848;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font: 14px/1.45 -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+      }
+      button, textarea {
+        -webkit-app-region: no-drag;
+        font: inherit;
+      }
+      button {
+        border: 0;
+        cursor: pointer;
+      }
+      #shell {
+        width: 100vw;
+        height: 100vh;
+        display: grid;
+        grid-template-rows: 44px 1fr;
+      }
+      #bar {
+        -webkit-app-region: drag;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 10px 8px 14px;
+        border-bottom: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.92);
+      }
+      #title {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--muted);
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .button {
+        min-width: 48px;
+        height: 28px;
+        padding: 0 10px;
+        border-radius: 6px;
+        background: #eceff4;
+        color: var(--text);
+        font-weight: 800;
+      }
+      .button:hover { background: #e1e5ec; }
+      .button.primary {
+        background: var(--accent);
+        color: #1d1d1d;
+      }
+      .button.danger {
+        background: transparent;
+        color: var(--danger);
+        min-width: 30px;
+        padding: 0;
+        font-size: 18px;
+      }
+      #content {
+        min-height: 0;
+        display: grid;
+        place-items: center;
+        padding: 34px;
+      }
+      #editor {
+        width: min(100%, 820px);
+        height: min(100%, 330px);
+        resize: none;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        outline: 3px solid rgba(255, 204, 0, 0.24);
+        background: var(--panel);
+        color: var(--text);
+        box-shadow: 0 18px 52px rgba(31, 35, 44, 0.16);
+        padding: 28px 32px;
+        text-align: center;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        font: 800 var(--notice-editor-size, 42px)/1.22 -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+        letter-spacing: 0;
+      }
+      #display {
+        display: none;
+        width: 100%;
+        max-height: 100%;
+        overflow: hidden;
+        text-align: center;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        color: #ffffff;
+        font: 900 var(--notice-display-size, 58px)/1.18 -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+        letter-spacing: 0;
+        text-shadow: 0 4px 24px rgba(0, 0, 0, 0.46);
+      }
+      body.displaying {
+        background: #12141a;
+      }
+      body.displaying #bar {
+        border-bottom-color: rgba(255, 255, 255, 0.12);
+        background: rgba(18, 20, 26, 0.86);
+      }
+      body.displaying #title {
+        color: rgba(255, 255, 255, 0.68);
+      }
+      body.displaying #content {
+        padding: 46px 58px 58px;
+      }
+      body.displaying #editor {
+        display: none;
+      }
+      body.displaying #display {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="shell">
+      <header id="bar">
+        <div id="title">안내사항</div>
+        <div id="actions">
+          <button class="button" id="hideButton" type="button">숨김</button>
+          <button class="button primary" id="showButton" type="button">표시</button>
+          <button class="button danger" id="closeButton" type="button" aria-label="닫기">×</button>
+        </div>
+      </header>
+      <section id="content">
+        <textarea id="editor" maxlength="220" placeholder="안내사항을 입력하세요"></textarea>
+        <div id="display"></div>
+      </section>
+    </main>
+    <script>
+      const bridge = window.dapPalette || {
+        postMessage() {},
+        onMessage() { return () => {}; },
+        close() {},
+      };
+      const editor = document.getElementById("editor");
+      const display = document.getElementById("display");
+      const showButton = document.getElementById("showButton");
+      const hideButton = document.getElementById("hideButton");
+      const closeButton = document.getElementById("closeButton");
+
+      let noticeText = "";
+      let visible = false;
+      let textSize = 58;
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function applyTextSize() {
+        const displaySize = clamp(Math.round(textSize), 32, 96);
+        const editorSize = clamp(Math.round(displaySize * 0.72), 24, 68);
+        document.documentElement.style.setProperty("--notice-display-size", `${displaySize}px`);
+        document.documentElement.style.setProperty("--notice-editor-size", `${editorSize}px`);
+      }
+
+      function render(focusEditor) {
+        applyTextSize();
+        document.body.classList.toggle("displaying", visible);
+        editor.value = noticeText;
+        display.textContent = noticeText;
+        hideButton.disabled = !visible;
+        if (focusEditor && !visible) {
+          requestAnimationFrame(() => {
+            editor.focus();
+            editor.select();
+          });
+        }
+      }
+
+      function showNotice() {
+        const value = editor.value.trim();
+        if (!value) {
+          hideNotice();
+          return;
+        }
+        noticeText = value;
+        visible = true;
+        render(false);
+        bridge.postMessage({ type: "notice", text: noticeText });
+      }
+
+      function hideNotice() {
+        noticeText = editor.value.trim() || noticeText;
+        visible = false;
+        render(true);
+        bridge.postMessage({ type: "hideNotice" });
+      }
+
+      showButton.addEventListener("click", showNotice);
+      hideButton.addEventListener("click", hideNotice);
+      closeButton.addEventListener("click", () => {
+        bridge.postMessage({ type: "closeNotice" });
+        if (typeof bridge.close === "function") bridge.close();
+      });
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        if ((event.ctrlKey || event.metaKey) && key === "enter") {
+          event.preventDefault();
+          showNotice();
+        } else if (key === "escape") {
+          event.preventDefault();
+          hideNotice();
+        } else if ((event.ctrlKey || event.metaKey) && key === "e") {
+          event.preventDefault();
+          visible = false;
+          render(true);
+        }
+      });
+
+      window.addEventListener("wheel", (event) => {
+        event.preventDefault();
+        const direction = event.deltaY < 0 ? 1 : -1;
+        const fine = Math.abs(event.deltaY) < 24;
+        const step = fine ? 2 : 4;
+        textSize = clamp(textSize + direction * step, 32, 96);
+        render(false);
+        bridge.postMessage({ type: "noticeTextSize", textSize });
+      }, { passive: false });
+
+      bridge.onMessage((msg) => {
+        if (!msg || typeof msg !== "object") return;
+        if (msg.type === "state") {
+          noticeText = typeof msg.text === "string" ? msg.text : noticeText;
+          if (Number.isFinite(Number(msg.textSize))) textSize = Number(msg.textSize);
+          visible = msg.visible === true && noticeText.length > 0;
+          render(!visible);
+        } else if (msg.type === "editNotice") {
+          noticeText = typeof msg.text === "string" ? msg.text : noticeText;
+          if (Number.isFinite(Number(msg.textSize))) textSize = Number(msg.textSize);
+          visible = false;
+          render(true);
+        } else if (msg.type === "notice") {
+          noticeText = typeof msg.text === "string" ? msg.text.trim() : "";
+          if (Number.isFinite(Number(msg.textSize))) textSize = Number(msg.textSize);
+          visible = noticeText.length > 0;
+          render(false);
+        } else if (msg.type === "hideNotice") {
+          visible = false;
+          render(true);
+        }
+      });
+
+      render(true);
+      bridge.postMessage({ type: "ready" });
+    </script>
+  </body>
+</html>
