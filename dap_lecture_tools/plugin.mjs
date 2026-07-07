@@ -224,6 +224,7 @@ function startPaletteCloseWatch(ctx) {
     paletteHandle = null;
     stopPaletteCloseWatch();
     closeOverlay(ctx);
+    closeNoticeWindow();
   }, 200);
   paletteCloseTimer.unref && paletteCloseTimer.unref();
 }
@@ -380,6 +381,9 @@ function onNoticeMessage(ctx, msg) {
     case "noticeTextSize":
       if (Number.isFinite(Number(msg.textSize))) noticeTextSize = Number(msg.textSize);
       break;
+    case "noticePasteTarget":
+      markNoticePasteTarget();
+      break;
     case "closeNotice":
       closeNoticeWindow();
       break;
@@ -432,6 +436,14 @@ function openNoticeWindow(ctx, editing) {
   }
   postNoticeState();
   return true;
+}
+
+function markNoticePasteTarget() {
+  try {
+    if (isAlive(noticeHandle) && typeof noticeHandle.markPasteTarget === "function") noticeHandle.markPasteTarget();
+  } catch {
+    /* older hosts do not expose explicit paste target registration */
+  }
 }
 
 function closeNoticeWindow() {
@@ -517,12 +529,14 @@ function onPaletteMessage(ctx, msg) {
       break;
     case "closePalette":
       closeOverlay(ctx);
+      closeNoticeWindow();
       closePalette();
       break;
     case "petDrop":
     case "droppedOnPet":
     case "paletteDroppedOnPet":
       closeOverlay(ctx);
+      closeNoticeWindow();
       closePalette();
       break;
     case "petHover":
