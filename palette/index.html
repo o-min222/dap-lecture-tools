@@ -131,7 +131,7 @@
       .popover.open { display: flex; }
       #colorPanel { left: 292px; }
       #sizePanel { left: 330px; }
-      .swatch, .size {
+      .swatch {
         width: 26px;
         height: 26px;
         display: grid;
@@ -140,12 +140,12 @@
         background: transparent;
         color: var(--muted);
       }
-      .swatch:hover, .size:hover { background: var(--panel-hover); }
-      .swatch[aria-disabled="true"], .size[aria-disabled="true"] {
+      .swatch:hover { background: var(--panel-hover); }
+      .swatch[aria-disabled="true"] {
         opacity: 0.36;
         cursor: default;
       }
-      .swatch[aria-disabled="true"]:hover, .size[aria-disabled="true"]:hover { background: transparent; }
+      .swatch[aria-disabled="true"]:hover { background: transparent; }
       .swatch span {
         width: 16px;
         height: 16px;
@@ -153,14 +153,31 @@
         background: var(--c);
         box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
       }
-      .size span {
-        width: 18px;
-        border-radius: 999px;
-        background: currentColor;
-      }
-      .swatch.active, .size.active {
+      .swatch.active {
         background: rgba(255, 204, 0, 0.14);
         color: var(--accent);
+      }
+      #sizePanel {
+        min-width: 154px;
+        padding: 8px 9px;
+        gap: 8px;
+      }
+      .range-wrap {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+      }
+      #strokeSlider {
+        width: 104px;
+        accent-color: var(--accent);
+      }
+      #strokeValue {
+        min-width: 30px;
+        color: var(--accent);
+        font-weight: 700;
+        text-align: right;
       }
       body[data-layout="vertical"] #bar {
         flex-direction: column;
@@ -184,7 +201,24 @@
         top: 254px;
         flex-direction: column;
       }
-      body[data-layout="vertical"] #sizePanel { top: 290px; }
+      body[data-layout="vertical"] #sizePanel {
+        left: 4px;
+        right: 4px;
+        top: 290px;
+        min-width: 0;
+        width: auto;
+      }
+      body[data-layout="vertical"] .range-wrap {
+        grid-template-columns: 1fr;
+        gap: 2px;
+      }
+      body[data-layout="vertical"] #strokeSlider {
+        width: 100%;
+      }
+      body[data-layout="vertical"] #strokeValue {
+        min-width: 0;
+        text-align: center;
+      }
       #tooltip {
         -webkit-app-region: no-drag;
         position: fixed;
@@ -293,9 +327,10 @@
     </div>
 
     <div class="popover" id="sizePanel">
-      <button class="size requires-canvas" data-size="3" title="얇게" aria-label="얇게" data-tip="얇게"><span style="height:3px"></span></button>
-      <button class="size requires-canvas" data-size="4" title="보통" aria-label="보통" data-tip="보통 굵기"><span style="height:5px"></span></button>
-      <button class="size requires-canvas" data-size="7" title="굵게" aria-label="굵게" data-tip="굵게"><span style="height:8px"></span></button>
+      <label class="range-wrap requires-canvas" aria-label="펜 굵기">
+        <input id="strokeSlider" type="range" min="1" max="16" step="1" value="4" />
+        <span id="strokeValue">4px</span>
+      </label>
     </div>
     <div id="tooltip"></div>
 
@@ -310,6 +345,8 @@
       const canvasToggle = document.getElementById("canvasToggle");
       const colorButton = document.getElementById("colorButton");
       const sizeButton = document.getElementById("sizeButton");
+      const strokeSlider = document.getElementById("strokeSlider");
+      const strokeValue = document.getElementById("strokeValue");
       const tooltip = document.getElementById("tooltip");
       let state = {
         mode: "draw",
@@ -328,6 +365,7 @@
 
       function setActive() {
         document.body.dataset.layout = state.options.layout === "vertical" ? "vertical" : "horizontal";
+        const strokeWidth = Math.max(1, Math.min(16, Number(state.options.strokeWidth) || 4));
         canvasToggle.classList.toggle("active", state.overlayVisible);
         document.querySelectorAll(".requires-canvas").forEach((el) => {
           el.setAttribute("aria-disabled", String(!state.overlayVisible));
@@ -339,17 +377,18 @@
         document.querySelectorAll("[data-color]").forEach((btn) => {
           btn.classList.toggle("active", btn.dataset.color === state.options.color);
         });
-        document.querySelectorAll("[data-size]").forEach((btn) => {
-          btn.classList.toggle("active", Number(btn.dataset.size) === Number(state.options.strokeWidth));
-        });
         document.querySelector(".swatch-dot").style.background = state.options.color;
-        document.querySelector(".stroke-dot").style.height = Math.min(9, Number(state.options.strokeWidth) + 1) + "px";
+        document.querySelector(".stroke-dot").style.height = Math.min(10, strokeWidth + 1) + "px";
+        strokeSlider.value = String(strokeWidth);
+        strokeValue.textContent = `${strokeWidth}px`;
       }
 
       function patchOptions(options) {
-        state.options = { ...state.options, ...options };
+        const next = { ...options };
+        if ("strokeWidth" in next) next.strokeWidth = Math.max(1, Math.min(16, Number(next.strokeWidth) || 4));
+        state.options = { ...state.options, ...next };
         setActive();
-        post({ type: "options", options });
+        post({ type: "options", options: next });
       }
 
       function showTooltip(el) {
@@ -449,12 +488,9 @@
           patchOptions({ color: btn.dataset.color });
         });
       });
-      document.querySelectorAll("[data-size]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          if (!state.overlayVisible) return;
-          closePanels();
-          patchOptions({ strokeWidth: Number(btn.dataset.size) });
-        });
+      strokeSlider.addEventListener("input", () => {
+        if (!state.overlayVisible) return;
+        patchOptions({ strokeWidth: Number(strokeSlider.value) });
       });
       document.addEventListener("keydown", (event) => {
         if (event.key === "Escape") closePanels();
