@@ -4,7 +4,7 @@ const SETTINGS_FULL_ID = `${PLUGIN_ID}.${SETTINGS_LOCAL_ID}`;
 
 const MOD_CONTROL = 0x2;
 const MOD_SHIFT = 0x4;
-const PALETTE_LEVEL = "screen-saver";
+const PALETTE_LEVEL = "pop-up-menu";
 
 let paletteHandle = null;
 let overlayHandle = null;
@@ -392,10 +392,10 @@ function openPalette(ctx) {
   const vertical = currentOptions.layout === "vertical";
   const paletteOptions = {
     page: "palette/index.html",
-    width: vertical ? 74 : 486,
-    height: vertical ? 522 : 42,
+    width: vertical ? 74 : 526,
+    height: vertical ? 562 : 42,
     frame: false,
-    closeOnPetDrop: false,
+    closeOnPetDrop: true,
     alwaysOnTop: true,
     visibleOnAllWorkspaces: true,
     level: PALETTE_LEVEL,
@@ -492,6 +492,7 @@ export function activate(ctx) {
 
   ctx.actions.registerAction({ id: "toggle", callback: () => togglePalette(ctx) });
   ctx.actions.registerAction({ id: "openPalette", callback: () => openPalette(ctx) });
+  ctx.actions.registerAction({ id: "toggleOverlay", callback: () => toggleOverlay(ctx) });
   ctx.actions.registerAction({ id: "drawMode", callback: () => toggleMode(ctx, "draw") });
   ctx.actions.registerAction({ id: "eraseMode", callback: () => toggleMode(ctx, "erase") });
   ctx.actions.registerAction({ id: "spotlightMode", callback: () => toggleMode(ctx, "spotlight") });
@@ -511,10 +512,10 @@ export function activate(ctx) {
 
   ctx.shortcuts.registerShortcut({
     actionKey: "toggle_lecture_tools",
-    title: "강의 도구 켜기/끄기",
+    title: "화면 캔버스 켜기/끄기",
     defaultModifiers: MOD_CONTROL | MOD_SHIFT,
     defaultVk: 0x4c,
-    actionId: "toggle",
+    actionId: "toggleOverlay",
     priority: 80,
   });
 

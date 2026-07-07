@@ -114,6 +114,7 @@
         background: currentColor;
       }
       #clear { color: var(--danger); }
+      #closePalette { color: var(--danger); }
       .popover {
         -webkit-app-region: no-drag;
         position: absolute;
@@ -275,6 +276,12 @@
         </button>
       </div>
 
+      <span class="divider"></span>
+
+      <button class="icon" id="closePalette" title="팔레트 닫기" aria-label="팔레트 닫기" data-tip="팔레트 닫기">
+        <svg viewBox="0 0 24 24"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+      </button>
+
     </div>
 
     <div class="popover" id="colorPanel">
@@ -404,6 +411,10 @@
       document.getElementById("hideOverlay").addEventListener("click", () => state.overlayVisible && post({ type: "hideOverlay" }));
       document.getElementById("undo").addEventListener("click", () => state.overlayVisible && post({ type: "undo" }));
       document.getElementById("clear").addEventListener("click", () => state.overlayVisible && post({ type: "clear" }));
+      document.getElementById("closePalette").addEventListener("click", () => {
+        closePanels();
+        post({ type: "closePalette" });
+      });
       colorButton.addEventListener("click", () => {
         if (!state.overlayVisible) return;
         colorPanel.classList.toggle("open");
