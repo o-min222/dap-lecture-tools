@@ -74,6 +74,11 @@
         color: var(--accent);
         box-shadow: inset 0 0 0 1px rgba(255, 204, 0, 0.48);
       }
+      .icon.active {
+        background: rgba(255, 204, 0, 0.16);
+        color: var(--accent);
+        box-shadow: inset 0 0 0 1px rgba(255, 204, 0, 0.48);
+      }
       .icon.primary.active {
         background: var(--accent);
         color: #1e1f22;
@@ -107,7 +112,7 @@
         background: var(--accent);
         box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
       }
-      .stroke-dot {
+      .pen-stroke-dot {
         width: 18px;
         height: 5px;
         border-radius: 999px;
@@ -131,6 +136,7 @@
       .popover.open { display: flex; }
       #colorPanel { left: 292px; }
       #sizePanel { left: 330px; }
+      #spotlightPanel { left: 368px; }
       .swatch {
         width: 26px;
         height: 26px;
@@ -179,6 +185,16 @@
         font-weight: 700;
         text-align: right;
       }
+      #spotlightSlider {
+        width: 104px;
+        accent-color: var(--accent);
+      }
+      #spotlightValue {
+        min-width: 42px;
+        color: var(--accent);
+        font-weight: 700;
+        text-align: right;
+      }
       body[data-layout="vertical"] #bar {
         flex-direction: column;
         justify-content: flex-start;
@@ -204,7 +220,14 @@
       body[data-layout="vertical"] #sizePanel {
         left: 4px;
         right: 4px;
-        top: 290px;
+        top: 362px;
+        min-width: 0;
+        width: auto;
+      }
+      body[data-layout="vertical"] #spotlightPanel {
+        left: 4px;
+        right: 4px;
+        top: 398px;
         min-width: 0;
         width: auto;
       }
@@ -212,10 +235,12 @@
         grid-template-columns: 1fr;
         gap: 2px;
       }
-      body[data-layout="vertical"] #strokeSlider {
+      body[data-layout="vertical"] #strokeSlider,
+      body[data-layout="vertical"] #spotlightSlider {
         width: 100%;
       }
-      body[data-layout="vertical"] #strokeValue {
+      body[data-layout="vertical"] #strokeValue,
+      body[data-layout="vertical"] #spotlightValue {
         min-width: 0;
         text-align: center;
       }
@@ -292,8 +317,14 @@
       <span class="divider"></span>
 
       <div class="group">
+        <button class="icon requires-canvas" id="noticeButton" title="안내 메모" aria-label="안내 메모" data-tip="안내사항 크게 표시">
+          <svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg>
+        </button>
+        <button class="icon requires-canvas" id="spotlightSizeButton" title="스포트라이트 크기" aria-label="스포트라이트 크기" data-tip="스포트라이트 크기 변경">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v2"/><path d="M12 19v2"/><path d="M3 12h2"/><path d="M19 12h2"/></svg>
+        </button>
         <button class="icon requires-canvas" id="colorButton" title="색상" aria-label="색상" data-tip="펜 색상 변경"><span class="swatch-dot"></span></button>
-        <button class="icon requires-canvas" id="sizeButton" title="굵기" aria-label="굵기" data-tip="선 굵기 변경"><span class="stroke-dot"></span></button>
+        <button class="icon requires-canvas" id="sizeButton" title="굵기" aria-label="굵기" data-tip="선 굵기 변경"><span class="pen-stroke-dot"></span></button>
       </div>
 
       <span class="divider"></span>
@@ -332,6 +363,12 @@
         <span id="strokeValue">4px</span>
       </label>
     </div>
+    <div class="popover" id="spotlightPanel">
+      <label class="range-wrap requires-canvas" aria-label="스포트라이트 크기">
+        <input id="spotlightSlider" type="range" min="80" max="320" step="10" value="170" />
+        <span id="spotlightValue">170px</span>
+      </label>
+    </div>
     <div id="tooltip"></div>
 
     <script>
@@ -342,16 +379,23 @@
       };
       const colorPanel = document.getElementById("colorPanel");
       const sizePanel = document.getElementById("sizePanel");
+      const spotlightPanel = document.getElementById("spotlightPanel");
       const canvasToggle = document.getElementById("canvasToggle");
+      const noticeButton = document.getElementById("noticeButton");
+      const spotlightSizeButton = document.getElementById("spotlightSizeButton");
       const colorButton = document.getElementById("colorButton");
       const sizeButton = document.getElementById("sizeButton");
       const strokeSlider = document.getElementById("strokeSlider");
       const strokeValue = document.getElementById("strokeValue");
+      const spotlightSlider = document.getElementById("spotlightSlider");
+      const spotlightValue = document.getElementById("spotlightValue");
       const tooltip = document.getElementById("tooltip");
       let state = {
         mode: "draw",
-        options: { color: "#ffcc00", strokeWidth: 4, layout: "horizontal" },
+        options: { color: "#ffcc00", strokeWidth: 4, spotlightSize: 170, layout: "horizontal" },
         overlayVisible: false,
+        noticeVisible: false,
+        noticeText: "",
       };
 
       function post(msg) { dap.postMessage(msg); }
@@ -359,14 +403,18 @@
       function closePanels(except) {
         if (except !== colorPanel) colorPanel.classList.remove("open");
         if (except !== sizePanel) sizePanel.classList.remove("open");
+        if (except !== spotlightPanel) spotlightPanel.classList.remove("open");
         colorButton.classList.toggle("open", colorPanel.classList.contains("open"));
         sizeButton.classList.toggle("open", sizePanel.classList.contains("open"));
+        spotlightSizeButton.classList.toggle("open", spotlightPanel.classList.contains("open"));
       }
 
       function setActive() {
         document.body.dataset.layout = state.options.layout === "vertical" ? "vertical" : "horizontal";
         const strokeWidth = Math.max(1, Math.min(16, Number(state.options.strokeWidth) || 4));
+        const spotlightSize = Math.max(80, Math.min(320, Number(state.options.spotlightSize) || 170));
         canvasToggle.classList.toggle("active", state.overlayVisible);
+        noticeButton.classList.toggle("active", state.overlayVisible && state.noticeVisible);
         document.querySelectorAll(".requires-canvas").forEach((el) => {
           el.setAttribute("aria-disabled", String(!state.overlayVisible));
         });
@@ -378,14 +426,17 @@
           btn.classList.toggle("active", btn.dataset.color === state.options.color);
         });
         document.querySelector(".swatch-dot").style.background = state.options.color;
-        document.querySelector(".stroke-dot").style.height = Math.min(10, strokeWidth + 1) + "px";
+        document.querySelector(".pen-stroke-dot").style.height = Math.min(10, strokeWidth + 1) + "px";
         strokeSlider.value = String(strokeWidth);
         strokeValue.textContent = `${strokeWidth}px`;
+        spotlightSlider.value = String(spotlightSize);
+        spotlightValue.textContent = `${spotlightSize}px`;
       }
 
       function patchOptions(options) {
         const next = { ...options };
         if ("strokeWidth" in next) next.strokeWidth = Math.max(1, Math.min(16, Number(next.strokeWidth) || 4));
+        if ("spotlightSize" in next) next.spotlightSize = Math.max(80, Math.min(320, Number(next.spotlightSize) || 170));
         state.options = { ...state.options, ...next };
         setActive();
         post({ type: "options", options: next });
@@ -464,6 +515,29 @@
         sizePanel.classList.toggle("open");
         closePanels(sizePanel);
       });
+      spotlightSizeButton.addEventListener("click", () => {
+        if (!state.overlayVisible) return;
+        spotlightPanel.classList.toggle("open");
+        closePanels(spotlightPanel);
+      });
+      noticeButton.addEventListener("click", () => {
+        closePanels();
+        if (!state.overlayVisible) return;
+        if (state.noticeVisible) {
+          state.noticeVisible = false;
+          setActive();
+          post({ type: "hideNotice" });
+          return;
+        }
+        const text = window.prompt("화면에 크게 표시할 안내사항을 입력하세요.", state.noticeText || "");
+        if (text === null) return;
+        const trimmed = text.trim();
+        state.noticeText = trimmed;
+        state.noticeVisible = trimmed.length > 0;
+        setActive();
+        if (trimmed) post({ type: "notice", text: trimmed });
+        else post({ type: "hideNotice" });
+      });
 
       document.querySelectorAll("[data-mode]").forEach((btn) => {
         btn.addEventListener("click", () => {
@@ -492,6 +566,10 @@
         if (!state.overlayVisible) return;
         patchOptions({ strokeWidth: Number(strokeSlider.value) });
       });
+      spotlightSlider.addEventListener("input", () => {
+        if (!state.overlayVisible) return;
+        patchOptions({ spotlightSize: Number(spotlightSlider.value) });
+      });
       document.addEventListener("keydown", (event) => {
         if (event.key === "Escape") closePanels();
       });
@@ -502,6 +580,8 @@
           ...state,
           mode: msg.mode || state.mode,
           overlayVisible: msg.overlayVisible === true,
+          noticeVisible: msg.noticeVisible === true,
+          noticeText: typeof msg.noticeText === "string" ? msg.noticeText : state.noticeText,
           options: { ...state.options, ...(msg.options || {}) },
         };
         setActive();

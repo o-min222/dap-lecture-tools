@@ -12,14 +12,14 @@ Use the DAP plugin catalog entry:
   "name": "Lecture Tools",
   "description": "강사용 커서 강조, 판서, spotlight 오버레이 컨트롤",
   "repo": "o-min222/dap-lecture-tools",
-  "ref": "v0.3.26"
+  "ref": "v0.3.27"
 }
 ```
 
 Manual download:
 
-- Release: https://github.com/o-min222/dap-lecture-tools/releases/tag/v0.3.26
-- Source zip: https://github.com/o-min222/dap-lecture-tools/archive/refs/tags/v0.3.26.zip
+- Release: https://github.com/o-min222/dap-lecture-tools/releases/tag/v0.3.27
+- Source zip: https://github.com/o-min222/dap-lecture-tools/archive/refs/tags/v0.3.27.zip
 
 ## What It Provides
 
@@ -40,6 +40,11 @@ Manual download:
 - Pen color and pen width are independent. Changing the color keeps the current
   width, and changing the width keeps the current color.
 - Pen width is controlled from the palette with a `1px` to `16px` slider.
+- Spotlight size is controlled from the palette with an `80px` to `320px`
+  slider.
+- The memo button shows a short notice full-screen over the lecture overlay.
+  Press the memo button again, hide the canvas, or close the palette to dismiss
+  it.
 - The palette is kept above the lecture overlay so controls stay reachable while
   the canvas is visible.
 
@@ -66,8 +71,8 @@ cursor position access, message bridging, permission gating, and lifecycle
 cleanup.
 
 Tool behavior such as palette UI, drawing state, canvas rendering, cursor
-highlighting, click ripple, spotlight rendering, undo, clear, colors, and stroke
-width belongs in this plugin.
+highlighting, click ripple, spotlight rendering and sizing, full-screen notices,
+undo, clear, colors, and stroke width belongs in this plugin.
 
 ## Files
 

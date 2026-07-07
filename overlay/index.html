@@ -32,11 +32,35 @@
       }
       body.inking { cursor: crosshair; touch-action: none; }
       #fx { pointer-events: none; }
+      #notice {
+        position: fixed;
+        inset: 0;
+        z-index: 3;
+        display: none;
+        place-items: center;
+        padding: 72px;
+        background: rgba(0, 0, 0, 0.76);
+        color: #ffffff;
+        pointer-events: none;
+      }
+      #notice.show { display: grid; }
+      #noticeText {
+        max-width: 1180px;
+        max-height: 78vh;
+        overflow: hidden;
+        text-align: center;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        font: 800 52px/1.22 -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+        letter-spacing: 0;
+        text-shadow: 0 4px 26px rgba(0, 0, 0, 0.7);
+      }
     </style>
   </head>
   <body>
     <canvas id="ink"></canvas>
     <canvas id="fx"></canvas>
+    <div id="notice" aria-hidden="true"><div id="noticeText"></div></div>
     <script>
       const bridge = window.dapPresentation || {
         postMessage() {},
@@ -47,6 +71,8 @@
       const fx = document.getElementById("fx");
       const inkCtx = ink.getContext("2d");
       const fxCtx = fx.getContext("2d");
+      const notice = document.getElementById("notice");
+      const noticeText = document.getElementById("noticeText");
 
       let mode = "draw";
       let options = {
@@ -59,6 +85,7 @@
       let view = { w: 1, h: 1 };
       let strokes = [];
       let currentStroke = null;
+      let noticeVisible = false;
       const drawingModes = new Set(["draw", "erase", "line", "rect", "ellipse"]);
 
       function viewportSize() {
@@ -148,6 +175,14 @@
         requestAnimationFrame(renderFx);
       }
 
+      function setNotice(text) {
+        const value = typeof text === "string" ? text.trim() : "";
+        noticeVisible = value.length > 0;
+        noticeText.textContent = value;
+        notice.classList.toggle("show", noticeVisible);
+        notice.setAttribute("aria-hidden", String(!noticeVisible));
+      }
+
       function setMode(next) {
         mode = next;
         document.body.classList.toggle("inking", drawingModes.has(mode));
@@ -220,6 +255,9 @@
         } else if (key === "h") {
           e.preventDefault();
           bridge.postMessage({ type: "hotkey", command: "hide" });
+        } else if (key === "escape" && noticeVisible) {
+          e.preventDefault();
+          bridge.postMessage({ type: "hotkey", command: "hideNotice" });
         }
       });
 
@@ -237,6 +275,10 @@
         } else if (msg.type === "undo") {
           strokes.pop();
           renderInk();
+        } else if (msg.type === "notice") {
+          setNotice(msg.text || "");
+        } else if (msg.type === "hideNotice") {
+          setNotice("");
         }
       });
 

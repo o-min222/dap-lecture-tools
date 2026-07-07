@@ -15,6 +15,8 @@ let cursorTimer = null;
 let lastDown = false;
 let currentMode = "draw";
 let currentOptions = {};
+let noticeText = "";
+let noticeVisible = false;
 let interactiveTimer = null;
 let paletteCloseTimer = null;
 let activeHotkeys = [];
@@ -79,7 +81,14 @@ function isPaletteVisible() {
 function postPaletteState() {
   if (!isAlive(paletteHandle)) return;
   if (typeof paletteHandle.postMessage === "function") {
-    paletteHandle.postMessage({ type: "state", mode: currentMode, options: currentOptions, overlayVisible });
+    paletteHandle.postMessage({
+      type: "state",
+      mode: currentMode,
+      options: currentOptions,
+      overlayVisible,
+      noticeVisible,
+      noticeText,
+    });
   }
 }
 
@@ -137,6 +146,7 @@ function registerCanvasHotkeys(ctx) {
     ["O", () => isPaletteVisible() && setMode(ctx, "ellipse")],
     ["H", () => isPaletteVisible() && hideOverlay(ctx)],
     ["X", () => isPaletteVisible() && overlayVisible && overlayPost(ctx, { type: "clear" })],
+    ["Escape", () => isPaletteVisible() && noticeVisible && hideNotice(ctx)],
     ["CommandOrControl+Z", () => isPaletteVisible() && overlayVisible && overlayPost(ctx, { type: "undo" })],
   ];
   for (const [accelerator, callback] of bindings) {
@@ -174,6 +184,8 @@ function syncOverlayInteractive(ctx) {
 
 function postOverlayState(ctx) {
   overlayPost(ctx, { type: "state", mode: currentMode, options: currentOptions });
+  if (noticeVisible) overlayPost(ctx, { type: "notice", text: noticeText });
+  else overlayPost(ctx, { type: "hideNotice" });
 }
 
 function postState(ctx) {
@@ -248,6 +260,7 @@ function onOverlayMessage(ctx, msg) {
     if (msg.command === "hide") hideOverlay(ctx);
     else if (msg.command === "clear" && overlayVisible) overlayPost(ctx, { type: "clear" });
     else if (msg.command === "undo" && overlayVisible) overlayPost(ctx, { type: "undo" });
+    else if (msg.command === "hideNotice" && noticeVisible) hideNotice(ctx);
     else if (msg.mode === "spotlight" || DRAWING_MODES.has(msg.mode)) setMode(ctx, msg.mode);
   }
 }
@@ -294,6 +307,8 @@ function hideOverlay(ctx) {
   if (isAlive(overlayHandle) && typeof overlayHandle.hide === "function") overlayHandle.hide();
   else if (api && typeof api.hideOverlay === "function") api.hideOverlay();
   overlayVisible = false;
+  noticeVisible = false;
+  noticeText = "";
   unregisterCanvasHotkeys(ctx);
   setOverlayInteractive(ctx);
   postPaletteState();
@@ -308,10 +323,33 @@ function closeOverlay(ctx) {
   overlayHandle = null;
   overlayOpened = false;
   overlayVisible = false;
+  noticeVisible = false;
+  noticeText = "";
   unregisterCanvasHotkeys(ctx);
   if (interactiveTimer) clearTimeout(interactiveTimer);
   interactiveTimer = null;
   stopCursorPump();
+  postPaletteState();
+}
+
+function showNotice(ctx, text) {
+  const value = typeof text === "string" ? text.trim() : "";
+  if (!value) {
+    hideNotice(ctx);
+    return;
+  }
+  noticeText = value;
+  noticeVisible = true;
+  if (ensureOverlay(ctx)) {
+    overlayPost(ctx, { type: "notice", text: noticeText });
+    postPaletteState();
+  }
+}
+
+function hideNotice(ctx) {
+  noticeVisible = false;
+  noticeText = "";
+  overlayPost(ctx, { type: "hideNotice" });
   postPaletteState();
 }
 
@@ -354,6 +392,12 @@ function onPaletteMessage(ctx, msg) {
     case "undo":
       if (overlayVisible) overlayPost(ctx, { type: "undo" });
       break;
+    case "notice":
+      showNotice(ctx, msg.text);
+      break;
+    case "hideNotice":
+      hideNotice(ctx);
+      break;
     case "closePalette":
       closeOverlay(ctx);
       closePalette();
@@ -392,8 +436,8 @@ function openPalette(ctx) {
   const vertical = currentOptions.layout === "vertical";
   const paletteOptions = {
     page: "palette/index.html",
-    width: vertical ? 74 : 526,
-    height: vertical ? 562 : 42,
+    width: vertical ? 74 : 604,
+    height: vertical ? 642 : 42,
     frame: false,
     closeOnPetDrop: true,
     alwaysOnTop: true,
