@@ -63,7 +63,7 @@ function optionsFromSettings(values) {
 }
 
 function mergedOptions(ctx, patch) {
-  currentOptions = { ...currentOptions, ...optionsFromSettings(settings(ctx)), ...(patch || {}) };
+  currentOptions = { ...optionsFromSettings(settings(ctx)), ...currentOptions, ...(patch || {}) };
   return currentOptions;
 }
 
