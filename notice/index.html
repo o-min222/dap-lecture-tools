@@ -123,15 +123,14 @@
       body.displaying {
         background: #12141a;
       }
-      body.displaying #bar {
-        border-bottom-color: rgba(255, 255, 255, 0.12);
-        background: rgba(18, 20, 26, 0.86);
+      body.displaying #shell {
+        grid-template-rows: 1fr;
       }
-      body.displaying #title {
-        color: rgba(255, 255, 255, 0.68);
+      body.displaying #bar {
+        display: none;
       }
       body.displaying #content {
-        padding: 46px 58px 58px;
+        padding: 58px;
       }
       body.displaying #editor {
         display: none;
@@ -240,6 +239,7 @@
 
       window.addEventListener("wheel", (event) => {
         event.preventDefault();
+        if (!visible) noticeText = editor.value;
         const direction = event.deltaY < 0 ? 1 : -1;
         const fine = Math.abs(event.deltaY) < 24;
         const step = fine ? 2 : 4;
