@@ -12,14 +12,14 @@ Use the DAP plugin catalog entry:
   "name": "Lecture Tools",
   "description": "강사용 커서 강조, 판서, spotlight 오버레이 컨트롤",
   "repo": "o-min222/dap-lecture-tools",
-  "ref": "v0.3.32"
+  "ref": "v0.3.33"
 }
 ```
 
 Manual download:
 
-- Release: https://github.com/o-min222/dap-lecture-tools/releases/tag/v0.3.32
-- Source zip: https://github.com/o-min222/dap-lecture-tools/archive/refs/tags/v0.3.32.zip
+- Release: https://github.com/o-min222/dap-lecture-tools/releases/tag/v0.3.33
+- Source zip: https://github.com/o-min222/dap-lecture-tools/archive/refs/tags/v0.3.33.zip
 
 ## What It Provides
 
@@ -47,7 +47,7 @@ Manual download:
 - The notice window is independent from the drawing canvas, so it can stay open
   while the screen canvas is hidden or changed.
 - Closing the palette also closes the notice window.
-- Drag the notice window by its internal handle.
+- Drag the notice window by its internal handle in the upper-left corner.
 - Clicking inside the notice text box registers it as a Super Clipboard paste
   target on hosts that support explicit palette paste targeting.
 - Scroll the mouse wheel or use a two-finger trackpad scroll inside the notice

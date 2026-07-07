@@ -24,25 +24,13 @@
         color: var(--text);
         font: 14px/1.45 -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
       }
-      #chrome {
-        -webkit-app-region: no-drag;
-        position: absolute;
-        top: 14px;
-        right: 16px;
-        z-index: 3;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        opacity: 0.84;
-        transition: opacity 120ms ease;
-      }
-      #chrome:hover,
-      #chrome:focus-within {
-        opacity: 1;
-      }
       #handle {
         -webkit-app-region: drag;
-        width: 40px;
+        position: absolute;
+        top: 14px;
+        left: 16px;
+        z-index: 3;
+        width: 56px;
         height: 28px;
         border: 1px solid rgba(23, 25, 31, 0.1);
         border-radius: 999px;
@@ -54,6 +42,12 @@
         justify-content: center;
         align-content: center;
         gap: 4px;
+        opacity: 0.78;
+        transition: opacity 120ms ease, transform 120ms ease;
+      }
+      #handle:hover {
+        opacity: 1;
+        transform: translateY(-1px);
       }
       #handle:active {
         cursor: grabbing;
@@ -66,6 +60,10 @@
       }
       #closeButton {
         -webkit-app-region: no-drag;
+        position: absolute;
+        top: 14px;
+        right: 16px;
+        z-index: 3;
         width: 30px;
         height: 30px;
         border: 0;
@@ -126,12 +124,10 @@
     </style>
   </head>
   <body>
-    <div id="chrome" aria-label="안내창 조작">
-      <div id="handle" title="이동" aria-label="이동 핸들" role="button">
-        <span></span><span></span><span></span>
-      </div>
-      <button id="closeButton" type="button" aria-label="닫기">×</button>
+    <div id="handle" title="이동" aria-label="이동 핸들" role="button">
+      <span></span><span></span><span></span>
     </div>
+    <button id="closeButton" type="button" aria-label="닫기">×</button>
     <textarea id="editor" maxlength="220" placeholder="안내사항을 입력하세요"></textarea>
     <div id="display"></div>
     <script>
