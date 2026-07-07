@@ -6,13 +6,10 @@
     <title>Lecture Notice</title>
     <style>
       :root {
-        --bg: #f7f8fa;
         --panel: #ffffff;
         --text: #17191f;
-        --muted: #69707d;
         --border: #d9dde5;
         --accent: #ffcc00;
-        --danger: #d94848;
       }
       * { box-sizing: border-box; }
       html, body {
@@ -20,79 +17,17 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
+        background: transparent;
       }
       body {
-        background: var(--bg);
+        padding: 6px;
         color: var(--text);
         font: 14px/1.45 -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
       }
-      button, textarea {
-        -webkit-app-region: no-drag;
-        font: inherit;
-      }
-      button {
-        border: 0;
-        cursor: pointer;
-      }
-      #shell {
-        width: 100vw;
-        height: 100vh;
-        display: grid;
-        grid-template-rows: 44px 1fr;
-      }
-      #bar {
-        -webkit-app-region: drag;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        padding: 8px 10px 8px 14px;
-        border-bottom: 1px solid var(--border);
-        background: rgba(255, 255, 255, 0.92);
-      }
-      #title {
-        min-width: 0;
-        overflow: hidden;
-        color: var(--muted);
-        font-weight: 700;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      #actions {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .button {
-        min-width: 48px;
-        height: 28px;
-        padding: 0 10px;
-        border-radius: 6px;
-        background: #eceff4;
-        color: var(--text);
-        font-weight: 800;
-      }
-      .button:hover { background: #e1e5ec; }
-      .button.primary {
-        background: var(--accent);
-        color: #1d1d1d;
-      }
-      .button.danger {
-        background: transparent;
-        color: var(--danger);
-        min-width: 30px;
-        padding: 0;
-        font-size: 18px;
-      }
-      #content {
-        min-height: 0;
-        display: grid;
-        place-items: center;
-        padding: 34px;
-      }
       #editor {
-        width: min(100%, 820px);
-        height: min(100%, 330px);
+        -webkit-app-region: no-drag;
+        width: 100%;
+        height: 100%;
         resize: none;
         border: 1px solid var(--border);
         border-radius: 8px;
@@ -108,10 +43,15 @@
         letter-spacing: 0;
       }
       #display {
+        -webkit-app-region: drag;
         display: none;
         width: 100%;
-        max-height: 100%;
+        height: 100%;
+        align-content: center;
         overflow: hidden;
+        border-radius: 8px;
+        background: rgba(18, 20, 26, 0.94);
+        padding: 34px;
         text-align: center;
         white-space: pre-wrap;
         overflow-wrap: anywhere;
@@ -120,41 +60,17 @@
         letter-spacing: 0;
         text-shadow: 0 4px 24px rgba(0, 0, 0, 0.46);
       }
-      body.displaying {
-        background: #12141a;
-      }
-      body.displaying #shell {
-        grid-template-rows: 1fr;
-      }
-      body.displaying #bar {
-        display: none;
-      }
-      body.displaying #content {
-        padding: 58px;
-      }
       body.displaying #editor {
         display: none;
       }
       body.displaying #display {
-        display: block;
+        display: grid;
       }
     </style>
   </head>
   <body>
-    <main id="shell">
-      <header id="bar">
-        <div id="title">안내사항</div>
-        <div id="actions">
-          <button class="button" id="hideButton" type="button">숨김</button>
-          <button class="button primary" id="showButton" type="button">표시</button>
-          <button class="button danger" id="closeButton" type="button" aria-label="닫기">×</button>
-        </div>
-      </header>
-      <section id="content">
-        <textarea id="editor" maxlength="220" placeholder="안내사항을 입력하세요"></textarea>
-        <div id="display"></div>
-      </section>
-    </main>
+    <textarea id="editor" maxlength="220" placeholder="안내사항을 입력하세요"></textarea>
+    <div id="display"></div>
     <script>
       const bridge = window.dapPalette || {
         postMessage() {},
@@ -163,9 +79,6 @@
       };
       const editor = document.getElementById("editor");
       const display = document.getElementById("display");
-      const showButton = document.getElementById("showButton");
-      const hideButton = document.getElementById("hideButton");
-      const closeButton = document.getElementById("closeButton");
 
       let noticeText = "";
       let visible = false;
@@ -182,12 +95,15 @@
         document.documentElement.style.setProperty("--notice-editor-size", `${editorSize}px`);
       }
 
+      function syncDraftFromEditor() {
+        if (!visible) noticeText = editor.value;
+      }
+
       function render(focusEditor) {
         applyTextSize();
         document.body.classList.toggle("displaying", visible);
-        editor.value = noticeText;
+        if (!visible && editor.value !== noticeText) editor.value = noticeText;
         display.textContent = noticeText;
-        hideButton.disabled = !visible;
         if (focusEditor && !visible) {
           requestAnimationFrame(() => {
             editor.focus();
@@ -209,17 +125,19 @@
       }
 
       function hideNotice() {
-        noticeText = editor.value.trim() || noticeText;
+        syncDraftFromEditor();
         visible = false;
         render(true);
         bridge.postMessage({ type: "hideNotice" });
       }
 
-      showButton.addEventListener("click", showNotice);
-      hideButton.addEventListener("click", hideNotice);
-      closeButton.addEventListener("click", () => {
-        bridge.postMessage({ type: "closeNotice" });
-        if (typeof bridge.close === "function") bridge.close();
+      editor.addEventListener("input", () => {
+        noticeText = editor.value;
+      });
+      editor.addEventListener("paste", () => {
+        requestAnimationFrame(() => {
+          noticeText = editor.value;
+        });
       });
 
       window.addEventListener("keydown", (event) => {
@@ -227,19 +145,19 @@
         if ((event.ctrlKey || event.metaKey) && key === "enter") {
           event.preventDefault();
           showNotice();
+        } else if ((event.ctrlKey || event.metaKey) && key === "w") {
+          event.preventDefault();
+          bridge.postMessage({ type: "closeNotice" });
+          if (typeof bridge.close === "function") bridge.close();
         } else if (key === "escape") {
           event.preventDefault();
           hideNotice();
-        } else if ((event.ctrlKey || event.metaKey) && key === "e") {
-          event.preventDefault();
-          visible = false;
-          render(true);
         }
       });
 
       window.addEventListener("wheel", (event) => {
         event.preventDefault();
-        if (!visible) noticeText = editor.value;
+        syncDraftFromEditor();
         const direction = event.deltaY < 0 ? 1 : -1;
         const fine = Math.abs(event.deltaY) < 24;
         const step = fine ? 2 : 4;
@@ -253,7 +171,7 @@
         if (msg.type === "state") {
           noticeText = typeof msg.text === "string" ? msg.text : noticeText;
           if (Number.isFinite(Number(msg.textSize))) textSize = Number(msg.textSize);
-          visible = msg.visible === true && noticeText.length > 0;
+          visible = msg.visible === true && noticeText.trim().length > 0;
           render(!visible);
         } else if (msg.type === "editNotice") {
           noticeText = typeof msg.text === "string" ? msg.text : noticeText;

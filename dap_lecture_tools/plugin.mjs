@@ -402,9 +402,12 @@ function openNoticeWindow(ctx, editing) {
   const options = {
     page: "notice/index.html",
     width: 960,
-    height: 540,
+    height: 430,
     frame: false,
+    transparent: true,
+    backgroundColor: "#00000000",
     closeOnPetDrop: false,
+    acceptsPasteTarget: true,
     alwaysOnTop: true,
     visibleOnAllWorkspaces: true,
     level: PALETTE_LEVEL,
@@ -417,7 +420,10 @@ function openNoticeWindow(ctx, editing) {
       width: options.width,
       height: options.height,
       frame: options.frame,
+      transparent: options.transparent,
+      backgroundColor: options.backgroundColor,
       closeOnPetDrop: options.closeOnPetDrop,
+      acceptsPasteTarget: options.acceptsPasteTarget,
     });
   }
   keepNoticeAbove();

@@ -1,6 +1,6 @@
 id: dap.lecture_tools
 name: Lecture Tools
-version: 0.3.30
+version: 0.3.31
 manifest_version: 2
 entry: dap_lecture_tools.plugin:activate
 description: 강사용 판서와 spotlight 화면 캔버스 컨트롤.
