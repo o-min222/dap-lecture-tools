@@ -355,7 +355,17 @@ function onPaletteMessage(ctx, msg) {
       if (overlayVisible) overlayPost(ctx, { type: "undo" });
       break;
     case "closePalette":
-      unregisterCanvasHotkeys(ctx);
+      closeOverlay(ctx);
+      closePalette();
+      break;
+    case "petDrop":
+    case "droppedOnPet":
+    case "paletteDroppedOnPet":
+      closeOverlay(ctx);
+      closePalette();
+      break;
+    case "petHover":
+    case "paletteHoverPet":
       break;
     case "options":
       mergedOptions(ctx, msg.options);
@@ -385,7 +395,7 @@ function openPalette(ctx) {
     width: vertical ? 74 : 486,
     height: vertical ? 522 : 42,
     frame: false,
-    closeOnPetDrop: true,
+    closeOnPetDrop: false,
     alwaysOnTop: true,
     visibleOnAllWorkspaces: true,
     level: PALETTE_LEVEL,
