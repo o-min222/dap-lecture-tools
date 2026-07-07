@@ -521,22 +521,9 @@
         closePanels(spotlightPanel);
       });
       noticeButton.addEventListener("click", () => {
-        closePanels();
         if (!state.overlayVisible) return;
-        if (state.noticeVisible) {
-          state.noticeVisible = false;
-          setActive();
-          post({ type: "hideNotice" });
-          return;
-        }
-        const text = window.prompt("화면에 크게 표시할 안내사항을 입력하세요.", state.noticeText || "");
-        if (text === null) return;
-        const trimmed = text.trim();
-        state.noticeText = trimmed;
-        state.noticeVisible = trimmed.length > 0;
-        setActive();
-        if (trimmed) post({ type: "notice", text: trimmed });
-        else post({ type: "hideNotice" });
+        closePanels();
+        post({ type: "editNotice", text: state.noticeText || "" });
       });
 
       document.querySelectorAll("[data-mode]").forEach((btn) => {

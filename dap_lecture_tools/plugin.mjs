@@ -262,6 +262,8 @@ function onOverlayMessage(ctx, msg) {
     else if (msg.command === "undo" && overlayVisible) overlayPost(ctx, { type: "undo" });
     else if (msg.command === "hideNotice" && noticeVisible) hideNotice(ctx);
     else if (msg.mode === "spotlight" || DRAWING_MODES.has(msg.mode)) setMode(ctx, msg.mode);
+  } else if (msg.type === "notice") {
+    showNotice(ctx, msg.text);
   }
 }
 
@@ -353,6 +355,13 @@ function hideNotice(ctx) {
   postPaletteState();
 }
 
+function editNotice(ctx, text) {
+  if (ensureOverlay(ctx)) {
+    overlayPost(ctx, { type: "editNotice", text: typeof text === "string" ? text : noticeText });
+    postPaletteState();
+  }
+}
+
 function toggleOverlay(ctx) {
   if (overlayVisible) hideOverlay(ctx);
   else ensureOverlay(ctx);
@@ -394,6 +403,9 @@ function onPaletteMessage(ctx, msg) {
       break;
     case "notice":
       showNotice(ctx, msg.text);
+      break;
+    case "editNotice":
+      editNotice(ctx, msg.text);
       break;
     case "hideNotice":
       hideNotice(ctx);
