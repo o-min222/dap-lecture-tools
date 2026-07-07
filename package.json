@@ -1,0 +1,9 @@
+{
+  "name": "dap-lecture-tools",
+  "version": "0.3.22",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node scripts/check.mjs"
+  }
+}

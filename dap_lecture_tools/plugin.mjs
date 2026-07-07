@@ -4,6 +4,7 @@ const SETTINGS_FULL_ID = `${PLUGIN_ID}.${SETTINGS_LOCAL_ID}`;
 
 const MOD_CONTROL = 0x2;
 const MOD_SHIFT = 0x4;
+const PALETTE_LEVEL = "screen-saver";
 
 let paletteHandle = null;
 let overlayHandle = null;
@@ -79,6 +80,35 @@ function postPaletteState() {
   if (!isAlive(paletteHandle)) return;
   if (typeof paletteHandle.postMessage === "function") {
     paletteHandle.postMessage({ type: "state", mode: currentMode, options: currentOptions, overlayVisible });
+  }
+}
+
+function keepPaletteAboveOverlay() {
+  if (!isAlive(paletteHandle)) return;
+  try {
+    if (typeof paletteHandle.setVisibleOnAllWorkspaces === "function") paletteHandle.setVisibleOnAllWorkspaces(true);
+  } catch {
+    /* window stacking hints are best-effort */
+  }
+  try {
+    if (typeof paletteHandle.setAlwaysOnTop === "function") paletteHandle.setAlwaysOnTop(true, PALETTE_LEVEL);
+  } catch {
+    /* window stacking hints are best-effort */
+  }
+  try {
+    if (typeof paletteHandle.moveTop === "function") paletteHandle.moveTop();
+  } catch {
+    /* window stacking hints are best-effort */
+  }
+  try {
+    if (typeof paletteHandle.show === "function") paletteHandle.show();
+  } catch {
+    /* window stacking hints are best-effort */
+  }
+  try {
+    if (typeof paletteHandle.focus === "function") paletteHandle.focus();
+  } catch {
+    /* window stacking hints are best-effort */
   }
 }
 
@@ -210,6 +240,7 @@ function onOverlayMessage(ctx, msg) {
     overlayOpened = true;
     overlayVisible = true;
     syncOverlayInteractive(ctx);
+    keepPaletteAboveOverlay();
     postOverlayState(ctx);
     postPaletteState();
   } else if (msg.type === "hotkey") {
@@ -253,6 +284,7 @@ function ensureOverlay(ctx) {
   registerCanvasHotkeys(ctx);
   syncOverlayInteractive(ctx);
   startCursorPump(ctx);
+  keepPaletteAboveOverlay();
   postState(ctx);
   return true;
 }
@@ -348,7 +380,28 @@ function openPalette(ctx) {
     return true;
   }
   const vertical = currentOptions.layout === "vertical";
-  paletteHandle = win.openPalette({ page: "palette/index.html", width: vertical ? 74 : 486, height: vertical ? 522 : 42, frame: false, closeOnPetDrop: true });
+  const paletteOptions = {
+    page: "palette/index.html",
+    width: vertical ? 74 : 486,
+    height: vertical ? 522 : 42,
+    frame: false,
+    closeOnPetDrop: true,
+    alwaysOnTop: true,
+    visibleOnAllWorkspaces: true,
+    level: PALETTE_LEVEL,
+  };
+  try {
+    paletteHandle = win.openPalette(paletteOptions);
+  } catch {
+    paletteHandle = win.openPalette({
+      page: paletteOptions.page,
+      width: paletteOptions.width,
+      height: paletteOptions.height,
+      frame: paletteOptions.frame,
+      closeOnPetDrop: paletteOptions.closeOnPetDrop,
+    });
+  }
+  keepPaletteAboveOverlay();
   if (paletteHandle && typeof paletteHandle.onMessage === "function") {
     paletteHandle.onMessage((msg) => onPaletteMessage(ctx, msg));
   }
