@@ -179,6 +179,10 @@
         if (!visible) noticeText = editor.value;
       }
 
+      function postDraft() {
+        bridge.postMessage({ type: "noticeDraft", text: noticeText });
+      }
+
       function render(focusEditor) {
         applyTextSize();
         document.body.classList.toggle("displaying", visible);
@@ -209,16 +213,18 @@
         syncDraftFromEditor();
         visible = false;
         render(true);
-        bridge.postMessage({ type: "hideNotice" });
+        bridge.postMessage({ type: "hideNotice", text: noticeText });
       }
 
       editor.addEventListener("input", () => {
         noticeText = editor.value;
+        postDraft();
         markPasteTarget();
       });
       editor.addEventListener("paste", () => {
         requestAnimationFrame(() => {
           noticeText = editor.value;
+          postDraft();
           markPasteTarget();
         });
       });

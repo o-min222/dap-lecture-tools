@@ -375,7 +375,11 @@ function onNoticeMessage(ctx, msg) {
     case "notice":
       showNotice(ctx, msg.text);
       break;
+    case "noticeDraft":
+      if (typeof msg.text === "string") noticeText = msg.text;
+      break;
     case "hideNotice":
+      if (typeof msg.text === "string") noticeText = msg.text;
       hideNotice(ctx);
       break;
     case "noticeTextSize":
@@ -413,6 +417,7 @@ function openNoticeWindow(ctx, editing) {
     frame: false,
     transparent: true,
     backgroundColor: "#00000000",
+    resizable: true,
     closeOnPetDrop: false,
     acceptsPasteTarget: true,
     alwaysOnTop: true,
@@ -585,6 +590,7 @@ function openPalette(ctx) {
     height: vertical ? 642 : 42,
     frame: false,
     closeOnPetDrop: true,
+    resizable: false,
     alwaysOnTop: true,
     visibleOnAllWorkspaces: true,
     level: PALETTE_LEVEL,

@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { pathToFileURL } from "node:url";
 import vm from "node:vm";
 
 const files = [
@@ -23,7 +24,7 @@ for (const file of files) {
     const scripts = scriptsFromHtml(source);
     scripts.forEach((script, index) => checkJavaScript(script, `${file}#script-${index + 1}`));
   } else {
-    await import(fileURLToPath(new URL(`../${file}`, import.meta.url)));
+    await import(pathToFileURL(fileURLToPath(new URL(`../${file}`, import.meta.url))).href);
   }
   console.log(`ok ${file}`);
 }
