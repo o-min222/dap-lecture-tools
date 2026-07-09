@@ -6,9 +6,12 @@
     <title>Lecture Notice</title>
     <style>
       :root {
-        --panel: #ffffff;
-        --text: #17191f;
-        --border: #d9dde5;
+        --bg: #1e1f22;
+        --panel: #2b2d31;
+        --panel-hover: #34363c;
+        --text: #e6e7ea;
+        --muted: #9aa0a8;
+        --border: #3a3d44;
         --accent: #ffcc00;
       }
       * { box-sizing: border-box; }
@@ -17,79 +20,54 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background: transparent;
+        background: var(--bg);
       }
       body {
-        padding: 6px;
         color: var(--text);
         font: 14px/1.45 -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
-      }
-      #handle {
-        -webkit-app-region: no-drag;
-        user-select: none;
-        position: absolute;
-        top: 12px;
-        left: 14px;
-        z-index: 3;
-        width: 84px;
-        height: 28px;
-        border: 0;
-        border-radius: 8px;
-        background: transparent;
-        cursor: grab;
         display: flex;
-        justify-content: center;
+        flex-direction: column;
+        user-select: none;
+      }
+      #titlebar {
+        display: flex;
         align-items: center;
-        opacity: 0.52;
-        transition: opacity 120ms ease, transform 120ms ease;
+        gap: 8px;
+        padding: 7px 10px;
+        border-bottom: 1px solid var(--border);
+        -webkit-app-region: drag;
+        cursor: grab;
       }
-      #handle:hover {
-        opacity: 0.86;
-        transform: translateY(-1px);
+      #titlebar:active { cursor: grabbing; }
+      #titlebar .grip {
+        display: inline-flex;
+        color: var(--muted);
       }
-      #handle:active {
-        cursor: grabbing;
+      #titlebar:hover .grip { color: var(--text); }
+      #titlebar .title {
+        font-weight: 700;
       }
-      #handle,
-      #handle * {
+      #titlebar .spacer {
+        flex: 1;
+      }
+      .icon-btn {
         -webkit-app-region: no-drag;
-      }
-      #handle span {
-        display: none;
-      }
-      #handle::before {
-        content: "";
-        width: 54px;
-        height: 6px;
-        border-radius: 999px;
-        background: linear-gradient(
-          90deg,
-          rgba(23, 25, 31, 0.16),
-          rgba(23, 25, 31, 0.4),
-          rgba(23, 25, 31, 0.16)
-        );
-      }
-      #closeButton {
-        -webkit-app-region: no-drag;
-        position: absolute;
-        top: 10px;
-        right: 12px;
-        z-index: 3;
-        width: 36px;
-        height: 36px;
-        border: 0;
-        border-radius: 8px;
         background: transparent;
-        color: rgba(23, 25, 31, 0.42);
+        border: 0;
+        color: var(--muted);
         cursor: pointer;
-        font: 500 28px/34px -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
-        text-align: center;
-        padding: 0;
-        transition: color 120ms ease, transform 120ms ease;
+        font: 700 12px/1 -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+        padding: 6px 8px;
+        border-radius: 6px;
       }
-      #closeButton:hover {
-        color: rgba(23, 25, 31, 0.76);
-        transform: translateY(-1px);
+      .icon-btn:hover {
+        color: var(--text);
+        background: var(--panel);
+      }
+      #content {
+        flex: 1;
+        min-height: 0;
+        padding: 8px;
       }
       #editor {
         -webkit-app-region: no-drag;
@@ -97,18 +75,20 @@
         height: 100%;
         resize: none;
         border: 1px solid var(--border);
-        border-radius: 8px;
-        outline: 3px solid rgba(255, 204, 0, 0.24);
+        border-radius: 6px;
+        outline: 0;
         background: var(--panel);
         color: var(--text);
-        box-shadow: 0 18px 52px rgba(31, 35, 44, 0.16);
         padding: 28px 32px;
         text-align: center;
         white-space: pre-wrap;
         overflow-wrap: anywhere;
         font: 800 var(--notice-editor-size, 42px)/1.22 -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
         letter-spacing: 0;
+        user-select: text;
       }
+      #editor:focus { border-color: var(--accent); }
+      #editor::placeholder { color: var(--muted); }
       #display {
         -webkit-app-region: no-drag;
         display: none;
@@ -116,8 +96,8 @@
         height: 100%;
         align-content: center;
         overflow: hidden;
-        border-radius: 8px;
-        background: rgba(18, 20, 26, 0.94);
+        border-radius: 6px;
+        background: #111216;
         padding: 34px;
         text-align: center;
         white-space: pre-wrap;
@@ -136,12 +116,17 @@
     </style>
   </head>
   <body>
-    <div id="handle" title="이동" aria-label="이동 핸들" role="button">
-      <span></span><span></span><span></span>
+    <div id="titlebar" title="여기를 잡고 드래그하면 창을 옮길 수 있어요">
+      <span class="grip" aria-hidden="true"><svg viewBox="0 0 16 16" width="10" height="16" fill="currentColor"><circle cx="5" cy="4" r="1.3"/><circle cx="5" cy="8" r="1.3"/><circle cx="5" cy="12" r="1.3"/><circle cx="11" cy="4" r="1.3"/><circle cx="11" cy="8" r="1.3"/><circle cx="11" cy="12" r="1.3"/></svg></span>
+      <span class="title">안내사항</span>
+      <span class="spacer"></span>
+      <button class="icon-btn" id="toggleNotice" type="button" title="표시/편집">표시</button>
+      <button class="icon-btn" id="closeButton" type="button" title="닫기">✕</button>
     </div>
-    <button id="closeButton" type="button" aria-label="닫기">×</button>
-    <textarea id="editor" maxlength="220" placeholder="안내사항을 입력하세요"></textarea>
-    <div id="display"></div>
+    <div id="content">
+      <textarea id="editor" maxlength="220" placeholder="안내사항을 입력하세요"></textarea>
+      <div id="display"></div>
+    </div>
     <script>
       const bridge = window.dapPalette || {
         postMessage() {},
@@ -150,15 +135,12 @@
       };
       const editor = document.getElementById("editor");
       const display = document.getElementById("display");
+      const toggleButton = document.getElementById("toggleNotice");
       const closeButton = document.getElementById("closeButton");
-      const handle = document.getElementById("handle");
 
       let noticeText = "";
       let visible = false;
       let textSize = 58;
-      let dragging = false;
-      let lastDragX = 0;
-      let lastDragY = 0;
 
       function clamp(value, min, max) {
         return Math.max(min, Math.min(max, value));
@@ -186,6 +168,7 @@
       function render(focusEditor) {
         applyTextSize();
         document.body.classList.toggle("displaying", visible);
+        toggleButton.textContent = visible ? "편집" : "표시";
         if (!visible && editor.value !== noticeText) editor.value = noticeText;
         display.textContent = noticeText;
         if (focusEditor && !visible) {
@@ -232,28 +215,9 @@
       editor.addEventListener("pointerdown", markPasteTarget);
       editor.addEventListener("click", markPasteTarget);
 
-      handle.addEventListener("pointerdown", (event) => {
-        event.preventDefault();
-        dragging = true;
-        lastDragX = event.screenX;
-        lastDragY = event.screenY;
-        handle.setPointerCapture(event.pointerId);
-      });
-      handle.addEventListener("pointermove", (event) => {
-        if (!dragging) return;
-        event.preventDefault();
-        const dx = event.screenX - lastDragX;
-        const dy = event.screenY - lastDragY;
-        lastDragX = event.screenX;
-        lastDragY = event.screenY;
-        if (dx || dy) bridge.postMessage({ type: "noticeMoveBy", dx, dy });
-      });
-      handle.addEventListener("pointerup", (event) => {
-        dragging = false;
-        try { handle.releasePointerCapture(event.pointerId); } catch {}
-      });
-      handle.addEventListener("pointercancel", () => {
-        dragging = false;
+      toggleButton.addEventListener("click", () => {
+        if (visible) hideNotice();
+        else showNotice();
       });
 
       closeButton.addEventListener("click", () => {

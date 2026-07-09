@@ -388,9 +388,6 @@ function onNoticeMessage(ctx, msg) {
     case "noticePasteTarget":
       markNoticePasteTarget();
       break;
-    case "noticeMoveBy":
-      moveNoticeBy(msg.dx, msg.dy);
-      break;
     case "closeNotice":
       closeNoticeWindow();
       break;
@@ -415,8 +412,8 @@ function openNoticeWindow(ctx, editing) {
     width: 960,
     height: 430,
     frame: false,
-    transparent: true,
-    backgroundColor: "#00000000",
+    transparent: false,
+    backgroundColor: "#1e1f22",
     resizable: true,
     closeOnPetDrop: false,
     acceptsPasteTarget: true,
@@ -451,17 +448,6 @@ function markNoticePasteTarget() {
     if (isAlive(noticeHandle) && typeof noticeHandle.markPasteTarget === "function") noticeHandle.markPasteTarget();
   } catch {
     /* older hosts do not expose explicit paste target registration */
-  }
-}
-
-function moveNoticeBy(dx, dy) {
-  const deltaX = Number(dx);
-  const deltaY = Number(dy);
-  if (!Number.isFinite(deltaX) || !Number.isFinite(deltaY)) return;
-  try {
-    if (isAlive(noticeHandle) && typeof noticeHandle.moveBy === "function") noticeHandle.moveBy(deltaX, deltaY);
-  } catch {
-    /* older hosts rely on native draggable regions only */
   }
 }
 
