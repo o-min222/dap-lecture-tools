@@ -8,6 +8,7 @@ const PALETTE_LEVEL = "pop-up-menu";
 
 let paletteHandle = null;
 let overlayHandle = null;
+let noticeHandle = null;
 let overlayOpened = false;
 let overlayVisible = false;
 let disposeOverlayMessages = null;
@@ -15,6 +16,9 @@ let cursorTimer = null;
 let lastDown = false;
 let currentMode = "draw";
 let currentOptions = {};
+let noticeText = "";
+let noticeVisible = false;
+let noticeTextSize = 58;
 let interactiveTimer = null;
 let paletteCloseTimer = null;
 let activeHotkeys = [];
@@ -63,7 +67,7 @@ function optionsFromSettings(values) {
 }
 
 function mergedOptions(ctx, patch) {
-  currentOptions = { ...currentOptions, ...optionsFromSettings(settings(ctx)), ...(patch || {}) };
+  currentOptions = { ...optionsFromSettings(settings(ctx)), ...currentOptions, ...(patch || {}) };
   return currentOptions;
 }
 
@@ -79,7 +83,14 @@ function isPaletteVisible() {
 function postPaletteState() {
   if (!isAlive(paletteHandle)) return;
   if (typeof paletteHandle.postMessage === "function") {
-    paletteHandle.postMessage({ type: "state", mode: currentMode, options: currentOptions, overlayVisible });
+    paletteHandle.postMessage({
+      type: "state",
+      mode: currentMode,
+      options: currentOptions,
+      overlayVisible,
+      noticeVisible,
+      noticeText,
+    });
   }
 }
 
@@ -118,6 +129,10 @@ function overlayPost(ctx, msg) {
   else if (api && typeof api.postMessage === "function") api.postMessage(msg);
 }
 
+function noticePost(msg) {
+  if (isAlive(noticeHandle) && typeof noticeHandle.postMessage === "function") noticeHandle.postMessage(msg);
+}
+
 function setOverlayInteractive(ctx) {
   const on = overlayVisible;
   const api = presentation(ctx);
@@ -137,6 +152,7 @@ function registerCanvasHotkeys(ctx) {
     ["O", () => isPaletteVisible() && setMode(ctx, "ellipse")],
     ["H", () => isPaletteVisible() && hideOverlay(ctx)],
     ["X", () => isPaletteVisible() && overlayVisible && overlayPost(ctx, { type: "clear" })],
+    ["Escape", () => isPaletteVisible() && noticeVisible && hideNotice(ctx)],
     ["CommandOrControl+Z", () => isPaletteVisible() && overlayVisible && overlayPost(ctx, { type: "undo" })],
   ];
   for (const [accelerator, callback] of bindings) {
@@ -176,9 +192,14 @@ function postOverlayState(ctx) {
   overlayPost(ctx, { type: "state", mode: currentMode, options: currentOptions });
 }
 
+function postNoticeState() {
+  noticePost({ type: "state", text: noticeText, visible: noticeVisible, textSize: noticeTextSize });
+}
+
 function postState(ctx) {
   postPaletteState();
   postOverlayState(ctx);
+  postNoticeState();
 }
 
 function stopCursorPump() {
@@ -203,6 +224,7 @@ function startPaletteCloseWatch(ctx) {
     paletteHandle = null;
     stopPaletteCloseWatch();
     closeOverlay(ctx);
+    closeNoticeWindow();
   }, 200);
   paletteCloseTimer.unref && paletteCloseTimer.unref();
 }
@@ -315,6 +337,153 @@ function closeOverlay(ctx) {
   postPaletteState();
 }
 
+function keepNoticeAbove() {
+  if (!isAlive(noticeHandle)) return;
+  try {
+    if (typeof noticeHandle.setVisibleOnAllWorkspaces === "function") noticeHandle.setVisibleOnAllWorkspaces(true);
+  } catch {
+    /* window stacking hints are best-effort */
+  }
+  try {
+    if (typeof noticeHandle.setAlwaysOnTop === "function") noticeHandle.setAlwaysOnTop(true, PALETTE_LEVEL);
+  } catch {
+    /* window stacking hints are best-effort */
+  }
+  try {
+    if (typeof noticeHandle.moveTop === "function") noticeHandle.moveTop();
+  } catch {
+    /* window stacking hints are best-effort */
+  }
+  try {
+    if (typeof noticeHandle.show === "function") noticeHandle.show();
+  } catch {
+    /* window stacking hints are best-effort */
+  }
+  try {
+    if (typeof noticeHandle.focus === "function") noticeHandle.focus();
+  } catch {
+    /* window stacking hints are best-effort */
+  }
+}
+
+function onNoticeMessage(ctx, msg) {
+  if (!msg || typeof msg !== "object") return;
+  switch (msg.type) {
+    case "ready":
+      postNoticeState();
+      break;
+    case "notice":
+      showNotice(ctx, msg.text);
+      break;
+    case "noticeDraft":
+      if (typeof msg.text === "string") noticeText = msg.text;
+      break;
+    case "hideNotice":
+      if (typeof msg.text === "string") noticeText = msg.text;
+      hideNotice(ctx);
+      break;
+    case "noticeTextSize":
+      if (Number.isFinite(Number(msg.textSize))) noticeTextSize = Number(msg.textSize);
+      break;
+    case "noticePasteTarget":
+      markNoticePasteTarget();
+      break;
+    case "closeNotice":
+      closeNoticeWindow();
+      break;
+    default:
+      break;
+  }
+}
+
+function openNoticeWindow(ctx, editing) {
+  const win = windows(ctx);
+  if (!win || typeof win.openPalette !== "function") {
+    speak(ctx, "안내창은 DAP host의 window.palette 권한 지원이 필요해요.");
+    return false;
+  }
+  if (isAlive(noticeHandle)) {
+    keepNoticeAbove();
+    noticePost({ type: editing ? "editNotice" : "state", text: noticeText, visible: noticeVisible, textSize: noticeTextSize });
+    return true;
+  }
+  const options = {
+    page: "notice/index.html",
+    width: 960,
+    height: 430,
+    frame: false,
+    transparent: false,
+    backgroundColor: "#1e1f22",
+    resizable: true,
+    closeOnPetDrop: false,
+    acceptsPasteTarget: true,
+    alwaysOnTop: true,
+    visibleOnAllWorkspaces: true,
+    level: PALETTE_LEVEL,
+  };
+  try {
+    noticeHandle = win.openPalette(options);
+  } catch {
+    noticeHandle = win.openPalette({
+      page: options.page,
+      width: options.width,
+      height: options.height,
+      frame: options.frame,
+      transparent: options.transparent,
+      backgroundColor: options.backgroundColor,
+      closeOnPetDrop: options.closeOnPetDrop,
+      acceptsPasteTarget: options.acceptsPasteTarget,
+    });
+  }
+  keepNoticeAbove();
+  if (noticeHandle && typeof noticeHandle.onMessage === "function") {
+    noticeHandle.onMessage((msg) => onNoticeMessage(ctx, msg));
+  }
+  postNoticeState();
+  return true;
+}
+
+function markNoticePasteTarget() {
+  try {
+    if (isAlive(noticeHandle) && typeof noticeHandle.markPasteTarget === "function") noticeHandle.markPasteTarget();
+  } catch {
+    /* older hosts do not expose explicit paste target registration */
+  }
+}
+
+function closeNoticeWindow() {
+  if (isAlive(noticeHandle) && typeof noticeHandle.close === "function") noticeHandle.close();
+  noticeHandle = null;
+  noticeVisible = false;
+  postPaletteState();
+}
+
+function showNotice(ctx, text) {
+  const value = typeof text === "string" ? text.trim() : "";
+  if (!value) {
+    hideNotice(ctx);
+    return;
+  }
+  noticeText = value;
+  noticeVisible = true;
+  if (!openNoticeWindow(ctx, false)) return;
+  noticePost({ type: "notice", text: noticeText, textSize: noticeTextSize });
+  postPaletteState();
+}
+
+function hideNotice(ctx) {
+  noticeVisible = false;
+  noticePost({ type: "hideNotice" });
+  postPaletteState();
+}
+
+function editNotice(ctx, text) {
+  if (typeof text === "string") noticeText = text;
+  if (!openNoticeWindow(ctx, true)) return;
+  noticePost({ type: "editNotice", text: noticeText, textSize: noticeTextSize });
+  postPaletteState();
+}
+
 function toggleOverlay(ctx) {
   if (overlayVisible) hideOverlay(ctx);
   else ensureOverlay(ctx);
@@ -354,14 +523,25 @@ function onPaletteMessage(ctx, msg) {
     case "undo":
       if (overlayVisible) overlayPost(ctx, { type: "undo" });
       break;
+    case "notice":
+      showNotice(ctx, msg.text);
+      break;
+    case "editNotice":
+      editNotice(ctx, msg.text);
+      break;
+    case "hideNotice":
+      hideNotice(ctx);
+      break;
     case "closePalette":
       closeOverlay(ctx);
+      closeNoticeWindow();
       closePalette();
       break;
     case "petDrop":
     case "droppedOnPet":
     case "paletteDroppedOnPet":
       closeOverlay(ctx);
+      closeNoticeWindow();
       closePalette();
       break;
     case "petHover":
@@ -392,10 +572,11 @@ function openPalette(ctx) {
   const vertical = currentOptions.layout === "vertical";
   const paletteOptions = {
     page: "palette/index.html",
-    width: vertical ? 74 : 526,
-    height: vertical ? 562 : 42,
+    width: vertical ? 74 : 604,
+    height: vertical ? 642 : 42,
     frame: false,
     closeOnPetDrop: true,
+    resizable: false,
     alwaysOnTop: true,
     visibleOnAllWorkspaces: true,
     level: PALETTE_LEVEL,
@@ -462,29 +643,28 @@ export function activate(ctx) {
             { value: "#ff4d4f", label: "빨강" },
             { value: "#40c057", label: "초록" },
             { value: "#339af0", label: "파랑" },
+            { value: "#f8f9fa", label: "흰색" },
           ],
         },
         {
           key: "strokeWidth",
-          label: "펜 두께",
-          type: "select",
+          label: "펜 굵기",
+          type: "range",
           default: "4",
-          options: [
-            { value: "3", label: "얇게" },
-            { value: "4", label: "보통" },
-            { value: "7", label: "굵게" },
-          ],
+          min: 1,
+          max: 16,
+          step: 1,
+          unit: "px",
         },
         {
           key: "spotlightSize",
           label: "Spotlight 크기",
-          type: "select",
+          type: "range",
           default: "170",
-          options: [
-            { value: "120", label: "작게" },
-            { value: "170", label: "보통" },
-            { value: "240", label: "크게" },
-          ],
+          min: 80,
+          max: 320,
+          step: 10,
+          unit: "px",
         },
       ],
     },
@@ -519,7 +699,7 @@ export function activate(ctx) {
     priority: 80,
   });
 
-  ctx.radialMenu.addItem({ itemId: "lecture", label: "강의 도구", actionId: "toggle", priority: 60, icon: "assets/lecture-tools.svg" });
+  ctx.radialMenu.addItem({ itemId: "lecture", label: "강의 도구", actionId: "toggle", priority: 60, icon: "assets/icon.png" });
   ctx.trayMenu.addItem({
     itemId: "lecture",
     label: "강의 도구",
@@ -532,5 +712,6 @@ export function activate(ctx) {
     closeOverlay(ctx);
     unregisterCanvasHotkeys(ctx);
     closePalette();
+    closeNoticeWindow();
   };
 }
