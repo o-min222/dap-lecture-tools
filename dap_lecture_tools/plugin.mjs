@@ -699,7 +699,7 @@ export function activate(ctx) {
     priority: 80,
   });
 
-  ctx.radialMenu.addItem({ itemId: "lecture", label: "강의 도구", actionId: "toggle", priority: 60, icon: "assets/lecture-tools.svg" });
+  ctx.radialMenu.addItem({ itemId: "lecture", label: "강의 도구", actionId: "toggle", priority: 60, icon: "assets/icon.png" });
   ctx.trayMenu.addItem({
     itemId: "lecture",
     label: "강의 도구",
